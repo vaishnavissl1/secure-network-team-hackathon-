@@ -16,8 +16,13 @@ services:
       PORT: "8080"
       SSL_PORT: "8443"
       SSL_PROTOCOLS: TLSv1.2 TLSv1.3
-      SSL_OCSP_STAPLING: "off"
-      MODSEC_RULE_ENGINE: "On"
+      ACCESSLOG: /dev/null
+      MODSEC_RULE_ENGINE: ${SHIELD_RULE_ENGINE:-On}
+      MODSEC_AUDIT_ENGINE: RelevantOnly
+      MODSEC_AUDIT_LOG_FORMAT: JSON
+      MODSEC_AUDIT_LOG_PARTS: AHZ
+      MODSEC_AUDIT_LOG_RELEVANT_STATUS: "^403$"
+      MODSEC_AUDIT_LOG: /var/log/modsecurity/audit/modsec.jsonl
       BLOCKING_PARANOIA: "1"
       ANOMALY_INBOUND: "5"
     ports:
@@ -27,9 +32,14 @@ services:
       - ./certs/server.crt:/etc/nginx/conf/server.crt:ro
       - ./certs/server.key:/etc/nginx/conf/server.key:ro
       - ./waf/default.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
+      - ./waf/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
+      - edge-logs:/var/log/modsecurity/audit
     networks: [edge, backend]
 
 networks:
   edge: {}
   backend:
     internal: true
+
+volumes:
+  edge-logs:
