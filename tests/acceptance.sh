@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Score an existing run after checking the current edge configuration.
+# Run defensive verification or score supplied evidence without publishing.
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
-results=${1:-tests/results/acceptance.jsonl}
-test -s "$results"
-bash scripts/verify-edge.sh
-bash scripts/verify-waf.sh
-python3 dashboard/summarize.py --require full --results "$results" \
-    --access logs/nginx/access.log --audit logs/modsec/audit.log --out dashboard/alerts.json
+
+for interpreter in python3 python; do
+    if command -v "$interpreter" >/dev/null 2>&1 && "$interpreter" -c 'import sys; sys.exit(sys.version_info.major != 3)' >/dev/null 2>&1; then
+        exec "$interpreter" dashboard/acceptance.py "$@"
+    fi
+done
+printf '%s\n' 'Python 3 is required (python3 or python).' >&2
+exit 2

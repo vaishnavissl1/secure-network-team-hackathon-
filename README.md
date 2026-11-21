@@ -74,6 +74,25 @@ python3 dashboard/serve.py
 
 Open the storefront and live activity in separate browser tabs. Sign in to Juice Shop and filter Live activity for `/rest/user/login`. The new login lists HTTP 200, upstream 200, and the request ID. Run `bash scripts/verify-waf.sh` in the VM and search Live activity for its printed request ID. The matching 403 lists the correlated CRS rules. The live view refreshes every two seconds. It exposes a bounded set of recent events from the two VM logs and omits credentials, header values and bodies.
 
+## Run acceptance checks
+
+On the Ubuntu VM, with the stack running, use:
+
+```bash
+bash tests/acceptance.sh
+```
+
+This is **defensive verification**. It verifies TLS and edge isolation, the harmless WAF policy block, credential-free login throttling and recovery, and the 20 shopper cases. Use an ordinary lab shopper when prompted. To reuse an existing set of shopper outcomes, pass `--shopper-results logs/demo-XXXXXXXX/shopper.jsonl`. The controls still run live, and the report labels the shopper evidence by its original run ID.
+
+For **replay evidence**, supply the result file and the matching log files. This mode only reads evidence. It runs on Windows Git Bash as well as Ubuntu.
+
+```bash
+bash tests/acceptance.sh --replay path/to/results.jsonl --access path/to/access.log --audit path/to/audit.log
+```
+
+Each check prints **PASS**, **FAIL**, or **NOT RUN**. Defensive verification always marks Full replay **NOT RUN**. In replay mode, TLS and edge checks are **NOT RUN** and the Full replay verdict depends on a complete, correlated replay. Exit codes are `0` for a passed mode, `1` for a failed check affecting its verdict, and `2` when required evidence or prerequisites are missing. Reports go to `tests/results/acceptance-*/verdict.json`. Use `bash scripts/run_demo.sh` separately to publish the dashboard.
+
+
 ## Follow a request across the logs
 
 | Evidence | What to look for |

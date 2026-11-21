@@ -110,7 +110,8 @@ def summarize(results, access, audits):
         rows.append({"case_id": cid, "request_id": rid, "suite": r["klass"],
                      "method": r["method"], "uri": (a.get("uri") or r.get("uri","")).split("?")[0],
                      "status": status, "upstream_status": up, "limiter": limiter,
-                     "passed": ok, "outcome": outcome, "rule_ids": rule_ids})
+                     "passed": ok, "outcome": outcome, "rule_ids": rule_ids,
+                     "correlated": correlated})
 
     passed = len(BENIGN & accepted)
     benign_ok = BENIGN <= ids and passed >= 19 and "ben-20" in accepted
@@ -164,14 +165,14 @@ def main():
     if not (args.results and args.access and args.audit):
         ap.error("Provide results, access and audit paths")
     doc = summarize(list(records(args.results)), records(args.access), records(args.audit))
+    print(f"{doc['run_id']} | benign {doc['benign']['passed']}/20 | full suite verified {doc['full_suite_ok']}")
+    if args.require and not (doc["full_suite_ok"] if args.require == "full" else doc["benign"]["ok"]):
+        raise SystemExit(1)
     target = Path(args.out)
     target.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.NamedTemporaryFile(mode="w",encoding="utf8",dir=target.parent,delete=False) as f:
         json.dump(doc,f,indent=2)
     os.replace(f.name,target)
-    print(f"{doc['run_id']} | benign {doc['benign']['passed']}/20 | full suite verified {doc['full_suite_ok']}")
-    if args.require and not (doc["full_suite_ok"] if args.require == "full" else doc["benign"]["ok"]):
-        raise SystemExit(1)
 
 
 if __name__ == "__main__":

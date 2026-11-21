@@ -45,6 +45,8 @@ Start the Python server only when the dashboard listener is down. Leave the serv
 
 To publish another complete defensive run, register an ordinary shopper in the local storefront and keep its login details in your terminal. On the VM run `bash scripts/run_demo.sh` and enter those details when prompted. Each run checks the edge, WAF, limiter and recovery, runs twenty shopper requests, then publishes the correlated evidence. The dashboard refreshes within five seconds. Raw evidence stays under `logs/demo-*/`. The separate `--register` option creates one new disposable account for that run.
 
+For a separate pass/fail report, run `bash tests/acceptance.sh` on Ubuntu. It labels the run Defensive verification, writes a report under `tests/results/acceptance-*/`, and leaves the currently published dashboard evidence in place.
+
 ## Rebuild the evaluator pages
 
 Your copy of Estate is in Downloads. The build applies the project-owned pages directly to that template. Existing template files being replaced are backed up beside the template project. First-time npm dependency installation needs network access. The deployed pages run offline.
