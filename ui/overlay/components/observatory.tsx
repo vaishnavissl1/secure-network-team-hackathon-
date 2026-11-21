@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+
 import { ArrowRight, Shield, Lock, Search } from "lucide-react";
 
 type Row={case_id:string;request_id:string|null;status:number|null;upstream_status:string|null;uri:string;outcome:string;passed:boolean};
@@ -45,7 +45,7 @@ function Controls({data}:{data:Summary}){
   {c?<div className="panels"><article><Lock/><h2>TLS termination</h2><p>The edge negotiated TLS {c.tls.join(" and ")}. The backend runs on an internal Docker network.</p></article>
   <article><Shield/><h2>Inbound policy block</h2><p>The media-type probe returned 403. CRS rules {c.waf_rules.join(", ")} were recorded before upstream processing.</p><code>{c.waf_request_id}</code></article>
   <article><h2>Login rate limit</h2><p>Of {c.burst_total} credential-free probes, {c.burst_rejected} were rejected at nginx and {c.burst_admitted} reached the application. Recovery check: {c.recovery?"passed":"failed"}.</p></article></div>:<p>This run contains no edge-control measurements.</p>}
-  <section><small>Recorded Windows run · 20261121-105637</small><h2>Attack categories</h2><p>The team’s Windows report recorded one inbound 403 for each category. These counts belong to that earlier run.</p><div className="history">{["SQL injection","Cross-site scripting","Path traversal","Command injection","Scanner user agent"].map(x=><div key={x}>{x}<strong>1 block</strong></div>)}</div><p>Recorded login burst: 20 of 25 excess attempts returned 429; five reached the app. See report/REPORT.md for the mappings and source evidence.</p></section></>
+  <section><small>Recorded Windows run · 20261121-105637</small><h2>Attack categories</h2><p>The team’s Windows report recorded one inbound 403 for each category. These counts belong to that earlier run.</p><div className="history">{["SQL injection","Cross-site scripting","Path traversal","Command injection","Scanner user agent"].map(x=><div key={x}>{x}<strong>1 block</strong></div>)}</div><p>Recorded login burst: 20 of 25 attempts returned 429; five reached the app. See report/REPORT.md for the mappings and source evidence.</p></section></>
 }
 function Evidence({data}:{data:Summary}){
   const [query,setQuery]=useState("");
@@ -62,10 +62,10 @@ function Guide(){return <div className="guide">{[
 ].map(([duration,title,body])=><article key={title}><small>{duration}</small><div><h2>{title}</h2><p>{body}</p></div></article>)}</div>}
 export function Observatory({page}:{page:Page}){
   const {data,error}=useRun();
-  return <main>{page==="overview"?<div className="hero"><div className="heroinner"><span className="eyebrow">PS6 / Secure Networks</span><h1>Shield Wall</h1><p>Protecting a public-facing storefront at the network edge.</p><Link className="button" href="/controls/">Explore edge controls <ArrowRight size={17}/></Link></div></div>:
+  return <main>{page==="overview"?<div className="hero"><div className="heroinner"><span className="eyebrow">PS6 / Secure Networks</span><h1>Shield Wall</h1><p>Protecting a public-facing storefront at the network edge.</p><a className="button" href="/controls/">Explore edge controls <ArrowRight size={17}/></a></div></div>:
     <div className="pagehead"><div className="wrap"><span className="eyebrow">Shield Wall / {page}</span><h1>{info[page][0]}</h1><p>{info[page][1]}</p></div></div>}
   <div className="wrap content">{error&&<p role="alert">{data?"Refresh failed. Showing the last loaded run.":"Run evidence is unavailable. Publish a run from the VM."}</p>}
   {page==="demo"?<Guide/>:<>{data?<><div className="stamp"><i/>Latest published run <code>{data.run_id}</code><time>{new Date(data.generated_at).toLocaleString()}</time></div>
-  {page==="overview"?<><h2 className="title">Verification overview</h2><Stats data={data}/><div className="cards"><Link href="/controls/"><Shield/><h2>Control decisions</h2><p>TLS, policy enforcement and login throttling.</p><ArrowRight/></Link><Link href="/evidence/"><Search/><h2>Request ledger</h2><p>Trace each shopper request to the application.</p><ArrowRight/></Link></div></>:page==="controls"?<Controls data={data}/>:<Evidence data={data}/>}</>:!error&&<p>Loading run evidence…</p>}</>}
+  {page==="overview"?<><h2 className="title">Verification overview</h2><Stats data={data}/><div className="cards"><a href="/controls/"><Shield/><h2>Control decisions</h2><p>TLS, policy enforcement and login throttling.</p><ArrowRight/></a><a href="/evidence/"><Search/><h2>Request ledger</h2><p>Trace each shopper request to the application.</p><ArrowRight/></a></div></>:page==="controls"?<Controls data={data}/>:<Evidence data={data}/>}</>:!error&&<p>Loading run evidence…</p>}</>}
   </div></main>
 }
