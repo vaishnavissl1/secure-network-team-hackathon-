@@ -9,7 +9,9 @@ Routes are the REAL Juice Shop server routes (a browser '#/' fragment never
 reaches the server). Verify GOOD_LOGIN on your own instance before the scored run.
 """
 
-BASE = "https://localhost:8443"
+# 127.0.0.1 (not "localhost"): Windows resolves localhost to ::1 first and each request
+# then waits ~2s for the IPv4 fallback, which also hides the rate limiter.
+BASE = "https://127.0.0.1:8443"
 LOGIN_PATH = "/rest/user/login"
 
 # Default Juice Shop admin credentials (verify on your instance!).
@@ -21,6 +23,7 @@ GOOD_LOGIN = {"email": "admin@juice-sh.op", "password": "admin123"}
 # expected.type:
 #   "blocked"     -> WAF should return 403
 #   "allowed"     -> should pass (2xx/3xx), optional body_contains
+#   "rejected_edge" -> refused by nginx before the WAF (400); never forwarded to the app
 # ---------------------------------------------------------------------------
 ATTACK_CASES = [
     {"id": "atk-sqli-01", "klass": "sqli", "method": "GET",
@@ -30,8 +33,14 @@ ATTACK_CASES = [
      "path": "/rest/products/search?q=%3Cscript%3Ealert(1)%3C/script%3E",
      "expected": {"type": "blocked"}},
     {"id": "atk-trav-01", "klass": "traversal", "method": "GET",
-     "path": "/ftp/..%2f..%2f..%2fetc%2fpasswd",
+     "path": "/ftp?file=../../../../etc/passwd",
      "expected": {"type": "blocked"}},
+    # Path-form traversal: nginx normalises ..%2f above the root and answers 400 itself
+    # before ModSecurity runs. It never reaches the app, but it is NOT a WAF 403, so it is
+    # reported separately and not counted toward the 5 WAF-blocked exploit classes.
+    {"id": "atk-trav-02", "klass": "traversal_path", "method": "GET",
+     "path": "/ftp/..%2f..%2f..%2fetc%2fpasswd",
+     "expected": {"type": "rejected_edge"}},
     {"id": "atk-cmdi-01", "klass": "cmdi", "method": "GET",
      "path": "/rest/products/search?q=%3Bcat%20/etc/passwd",
      "expected": {"type": "blocked"}},

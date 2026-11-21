@@ -10,7 +10,7 @@ tests/results/run-<id>.jsonl. That file is the denominator the summarizer uses.
 Usage:
     python tests/runner.py --suite attack
     python tests/runner.py --suite benign
-    python tests/runner.py --suite all --base https://localhost:8443
+    python tests/runner.py --suite all --base https://127.0.0.1:8443
 
 Notes:
  - Self-signed TLS on localhost is expected; the runner does NOT verify the cert
@@ -32,6 +32,9 @@ import cases as C  # noqa: E402
 
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 _CTX = ssl._create_unverified_context()
+# Connect to 127.0.0.1 but present the real vhost so CRS rule 920350 (numeric-IP Host) stays quiet.
+HOST_HEADER = "shield.local:8443"
+_CFG = {"host": HOST_HEADER}
 
 
 def _send(base, case, timeout):
@@ -42,6 +45,7 @@ def _send(base, case, timeout):
     if case.get("json") is not None:
         data = json.dumps(case["json"]).encode()
         headers.setdefault("Content-Type", "application/json")
+    headers.setdefault("Host", _CFG["host"])
     req = urllib.request.Request(url, data=data, headers=headers,
                                  method=case.get("method", "GET"))
     t0 = time.time()
@@ -67,6 +71,8 @@ def _score(case, status, body):
     exp = case["expected"]
     if exp["type"] == "blocked":
         return status == 403
+    if exp["type"] == "rejected_edge":
+        return status in (400, 403)
     if exp["type"] == "allowed":
         if status is None or not (200 <= status < 400):
             return False
@@ -130,10 +136,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--suite", choices=["attack", "benign", "all"], default="all")
     ap.add_argument("--base", default=C.BASE)
+    ap.add_argument("--host-header", default=HOST_HEADER)
     ap.add_argument("--timeout", type=float, default=8.0)
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
+    _CFG["host"] = args.host_header
     os.makedirs(RESULTS_DIR, exist_ok=True)
     run_id = time.strftime("%Y%m%d-%H%M%S")
     out_path = args.out or os.path.join(RESULTS_DIR, f"run-{run_id}.jsonl")

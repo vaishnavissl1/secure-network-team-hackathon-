@@ -113,6 +113,7 @@ def build_summary(result_rows, access_by_id, audit_by_id, run_id=None):
     rows = []
     benign_pass = benign_total = 0
     exploit = {}
+    edge_rejected = []
     brute = {"admitted": 0, "rejected": 0, "other": 0, "recovered": False}
     by_type = {}
     rule_counts = {}
@@ -126,9 +127,19 @@ def build_summary(result_rows, access_by_id, audit_by_id, run_id=None):
                 rc = rule_counts.setdefault(h["ruleId"], {"count": 0, "msg": h["msg"],
                                                           "category": h["category"]})
                 rc["count"] += 1
-                by_type[h["category"]] = by_type.get(h["category"], 0) + 1
         blocked = (r.get("status") == 403)
         klass = r.get("klass", "")
+        if blocked:
+            # count each blocked request ONCE, under its primary attack type
+            cats = [h["category"] for h in hits
+                    if h["category"] not in ("anomaly", "protocol", "other")]
+            if klass in cats:
+                primary = klass
+            elif cats:
+                primary = max(set(cats), key=cats.count)
+            else:
+                primary = klass or "other"
+            by_type[primary] = by_type.get(primary, 0) + 1
         row = {
             "case_id": r.get("case_id"), "suite": klass, "method": r.get("method"),
             "uri": r.get("uri"), "status": r.get("status"),
@@ -138,6 +149,11 @@ def build_summary(result_rows, access_by_id, audit_by_id, run_id=None):
             "rule_ids": sorted({h["ruleId"] for h in hits if h["ruleId"]}),
             "note": r.get("note", ""),
         }
+        if klass == "bruteforce" and not str(r.get("case_id", "")).endswith(("-pre", "-post")):
+            row["outcome"] = ("rate-limited 429" if r.get("status") == 429 else
+                              "admitted" if r.get("status") in (200, 401) else "other")
+        else:
+            row["outcome"] = "pass" if r.get("passed") else "fail"
         rows.append(row)
 
         cid = r.get("case_id", "")
@@ -157,6 +173,11 @@ def build_summary(result_rows, access_by_id, audit_by_id, run_id=None):
                 brute["admitted"] += 1
             else:
                 brute["other"] += 1
+        elif (r.get("expected") or {}).get("type") == "rejected_edge":
+            # refused by nginx itself (400) before ModSecurity: reported separately, not a WAF 403
+            edge_rejected.append({"case_id": cid, "status": r.get("status"),
+                                  "upstream_status": row["upstream_status"],
+                                  "rejected": r.get("status") in (400, 403)})
         else:  # single-request exploit classes
             exploit[klass] = {"blocked": blocked, "status": r.get("status"),
                               "rule_ids": row["rule_ids"]}
@@ -174,11 +195,12 @@ def build_summary(result_rows, access_by_id, audit_by_id, run_id=None):
 
     return {
         "run_id": run_id, "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "totals": {"requests": total, "allowed": allowed_total, "blocked": blocked_total},
+        "totals": {"requests": total, "allowed": allowed_total, "blocked": blocked_total,
+                   "rate_limited": sum(1 for x in rows if x["status"] == 429)},
         "benign": {"passed": benign_pass, "total": benign_total,
                    "pass_rate": round(pass_rate, 4), "target": TARGET,
                    "ok": pass_rate >= TARGET},
-        "attacks": {"exploit": exploit, "exploit_ok": exploit_ok, "bruteforce": brute,
+        "attacks": {"exploit": exploit, "exploit_ok": exploit_ok, "edge_rejected": edge_rejected, "bruteforce": brute,
                     "bruteforce_ok": brute_ok},
         "by_type": by_type,
         "top_rules": top_rules,

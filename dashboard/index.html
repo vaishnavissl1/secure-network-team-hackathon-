@@ -117,7 +117,7 @@ async function load(){
        <td class="uri" title="${(r.uri||'').replace(/"/g,'&quot;')}">${(r.uri||'').replace(/</g,'&lt;')}</td>
        <td><code>${r.request_id? String(r.request_id).slice(0,8):'—'}</code></td>
        <td>${(r.rule_ids||[]).join(', ')||'—'}</td>
-       <td class="${r.passed?'ok':'bad'}">${r.passed?'pass':'fail'}</td></tr>`).join('');
+       <td class="${(r.outcome||'').startsWith('rate')?'warn':(r.outcome==='admitted'?'':(r.passed?'ok':'bad'))}">${r.outcome||(r.passed?'pass':'fail')}</td></tr>`).join('');
 }
 load();
 setInterval(load, 4000); // auto-refresh so live attack runs appear

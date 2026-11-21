@@ -4,7 +4,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
-BASE="${BASE:-https://localhost:8443}"
+BASE="${BASE:-https://127.0.0.1:8443}"
 HOST="${HOST:-shield.local}"
 RESULTS="tests/results/acceptance.jsonl"
 ACCESS="logs/nginx/access.log"
@@ -14,20 +14,23 @@ ALERTS="dashboard/alerts.json"
 echo "== 0. confirm blocking mode is ACTIVE (env changes need recreate, not restart) =="
 if command -v docker >/dev/null 2>&1 && [ -f docker-compose.yml ]; then
   docker compose up -d --force-recreate waf >/dev/null 2>&1 || echo "  (could not recreate waf — is the stack built?)"
-  docker compose exec -T waf sh -c 'grep -rhi "SecRuleEngine" /etc/modsecurity.d 2>/dev/null | head -1' \
+  MSYS_NO_PATHCONV=1 docker compose exec -T waf sh -c 'grep -rhi "SecRuleEngine" /etc/modsecurity.d 2>/dev/null | head -1' \
     || echo "  (could not read SecRuleEngine — check manually)"
 else
   echo "  SKIP: docker/compose not available here (run on the demo machine)."
 fi
 
 echo "== 1. replay attack + benign (writes one row per request) =="
-python tests/runner.py --suite all --base "$BASE" --out "$RESULTS" || true
+rm -f "$RESULTS" "$ALERTS"   # never score stale data from an earlier run
+if ! python tests/runner.py --suite all --base "$BASE" --out "$RESULTS" || [ ! -s "$RESULTS" ]; then
+  echo "  [FAIL] runner failed or wrote no rows - refusing to score stale data"; exit 2
+fi
 
 echo "== 1b. export edge logs from the compose volume (A: access.jsonl + modsec.jsonl) =="
 mkdir -p logs/nginx logs/modsec
 if command -v docker >/dev/null 2>&1 && [ -f docker-compose.yml ]; then
-  docker compose exec -T waf cat /var/log/modsecurity/audit/access.jsonl > logs/nginx/access.log 2>/dev/null     || echo "  (could not export access log; using existing $ACCESS if present)"
-  docker compose exec -T waf cat /var/log/modsecurity/audit/modsec.jsonl > logs/modsec/audit.log 2>/dev/null     || echo "  (could not export audit log; using existing $AUDIT if present)"
+  MSYS_NO_PATHCONV=1 docker compose exec -T waf cat /var/log/modsecurity/audit/access.jsonl > logs/nginx/access.log 2>/dev/null     || echo "  (could not export access log; using existing $ACCESS if present)"
+  MSYS_NO_PATHCONV=1 docker compose exec -T waf cat /var/log/modsecurity/audit/modsec.jsonl > logs/modsec/audit.log 2>/dev/null     || echo "  (could not export audit log; using existing $AUDIT if present)"
 fi
 
 echo "== 2. build the summary from schedule + logs =="
@@ -39,6 +42,15 @@ if [ -f certs/server.crt ]; then
   code=$(curl -s --cacert certs/server.crt --resolve "$HOST:8443:127.0.0.1" \
          -o /dev/null -w '%{http_code}' "https://$HOST:8443/" 2>/dev/null || echo "000")
   if [ "$code" != "000" ]; then TLS="PASS ($code, cert trusted for $HOST)"; else TLS="FAIL (cert/hostname not trusted)"; fi
+fi
+if [ -f certs/server.crt ]; then
+  old=$(curl -s --cacert certs/server.crt --resolve "$HOST:8443:127.0.0.1" --tls-max 1.1 -o /dev/null -w '%{http_code}' "https://$HOST:8443/" 2>/dev/null || true)
+  new12=$(curl -s --cacert certs/server.crt --resolve "$HOST:8443:127.0.0.1" --tlsv1.2 --tls-max 1.2 -o /dev/null -w '%{http_code}' "https://$HOST:8443/" 2>/dev/null || true)
+  if [ "${old:-000}" = "000" ] && [ "${new12:-000}" != "000" ]; then
+    TLS="$TLS; TLS<=1.1 refused, TLS1.2 accepted"
+  else
+    TLS="FAIL (legacy TLS accepted or TLS1.2 refused: old=$old tls12=$new12)"
+  fi
 fi
 echo "  TLS: $TLS"
 
@@ -56,11 +68,15 @@ exploit_ok = a["exploit_ok"]
 brute = a["bruteforce"]; brute_ok = a["bruteforce_ok"]
 benign_ok = b["ok"]
 line(exploit_ok, f"5 exploit classes blocked (403): {', '.join(k for k,v in a['exploit'].items() if v['blocked'])}")
+for e in a.get("edge_rejected", []):
+    print(f"  [INFO] {e['case_id']}: path-form traversal refused by nginx with {e['status']} (upstream_status={e['upstream_status']!r}); not a WAF 403, reported separately")
+scan = a["exploit"].get("scanner", {})
+print(f"  [INFO] scanner confirmed from audit log rules: {scan.get('rule_ids') or 'NONE FOUND'}")
 line(brute_ok, f"brute-force: admitted={brute['admitted']} rejected(429)={brute['rejected']} recovered={brute['recovered']}")
 line(benign_ok, f"benign >=95% by expected outcome: {b['passed']}/{b['total']} = {b['pass_rate']*100:.0f}%")
 line(tls.startswith('PASS'), f"TLS: {tls}")
 allgood = exploit_ok and brute_ok and benign_ok and tls.startswith('PASS')
-print("\n  RESULT:", "ALL PASS ✓" if allgood else "NOT YET — see FAILs above")
+print("\n  RESULT:", "ALL PASS" if allgood else "NOT YET - see FAILs above")
 print("  (report numerator/denominator, not slogans; name any open case)")
 sys.exit(0 if allgood else 1)
 PY
