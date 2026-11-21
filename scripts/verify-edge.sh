@@ -2,11 +2,13 @@
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
-tls=(--noproxy '*' --cacert certs/server.crt --resolve shield.local:8443:127.0.0.1 --max-time 5)
-app_url='https://shield.local:8443/rest/products/search?q=apple'
+tls=(--noproxy '*' --cacert certs/server.crt --resolve localhost:8443:127.0.0.1 --max-time 5)
+base='https://localhost:8443'
+app_url="$base/rest/products/search?q=apple"
+agent='Shield Wall "edge check"'
 
 for ((attempt=1; attempt<=30; attempt++)); do
-    if app_json=$(curl -fsS "${tls[@]}" "$app_url" 2>/dev/null); then
+    if response=$(curl -fsS "${tls[@]}" -A "$agent" -w '\n%{http_code} %header{x-request-id}\n' "$app_url" 2>/dev/null); then
         break
     fi
     if (( attempt == 30 )); then
@@ -16,7 +18,9 @@ for ((attempt=1; attempt<=30; attempt++)); do
     sleep 2
 done
 
-printf '%s' "$app_json" | python3 -c 'import json, sys; result = json.load(sys.stdin); sys.exit(0 if result.get("status") == "success" and isinstance(result.get("data"), list) else 1)'
+read -r app_status app_id <<< "${response##*$'\n'}"
+[[ "$app_status" == 200 && "$app_id" =~ ^[[:xdigit:]]{32}$ ]]
+printf '%s' "${response%$'\n'*}" | python3 -c 'import json, sys; result = json.load(sys.stdin); sys.exit(0 if result.get("status") == "success" and isinstance(result.get("data"), list) else 1)'
 printf '%s\n' 'PASS trusted HTTPS reached the Juice Shop product search'
 
 redirect=$(curl -fsS --noproxy '*' --max-time 5 -o /dev/null -w '%{http_code} %{redirect_url}' 'http://127.0.0.1:8080/healthz')
@@ -40,3 +44,30 @@ backend=$(docker compose ps -q juice-shop)
 [[ $(docker compose port waf 8080) == '127.0.0.1:8080' ]]
 [[ $(docker compose port waf 8443) == '127.0.0.1:8443' ]]
 printf '%s\n' 'PASS Juice Shop is on an internal network with no published port, edge ports use VM loopback'
+
+health=$(curl -fsS "${tls[@]}" -A "$agent" -o /dev/null -w '%{http_code} %header{x-request-id}' "$base/healthz")
+read -r health_status health_id <<< "$health"
+[[ "$health_status" == 200 && "$health_id" =~ ^[[:xdigit:]]{32}$ ]]
+
+python3 -c '
+import json
+import sys
+from datetime import datetime
+
+app_id, health_id, agent = sys.argv[1:]
+wanted = {app_id, health_id}
+events = {}
+for line in sys.stdin:
+    event = json.loads(line)
+    if event["request_id"] in wanted:
+        events[event["request_id"]] = event
+
+app, health = events[app_id], events[health_id]
+for event in (app, health):
+    assert event["status"] == 200 and event["method"] == "GET", event
+    assert event["user_agent"] == agent and event["limit_req_status"] == "", event
+    assert datetime.fromisoformat(event["time"]).tzinfo is not None, event
+assert app["uri"] == "/rest/products/search" and app["upstream_status"] == "200", app
+assert health["uri"] == "/healthz" and health["upstream_status"] == "", health
+' "$app_id" "$health_id" "$agent" < logs/nginx/access.log
+printf '%s\n' 'PASS host access log matched the 200 request IDs for search and health and preserved the quoted user agent'

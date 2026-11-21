@@ -14,18 +14,15 @@ read -r status request_id < <(
 [[ "$status" == 403 && "$request_id" =~ ^[[:xdigit:]]{32}$ ]]
 printf 'PASS inbound WAF probe returned 403 with request ID %s\n' "$request_id"
 
-log_dir=/var/log/modsecurity/audit
-docker compose exec -T waf cat "$log_dir/access.jsonl" |
-    python3 -c '
+python3 -c '
 import json
 import sys
 
 event = next(row for row in map(json.loads, sys.stdin) if row["request_id"] == sys.argv[1])
 assert event["status"] == 403 and event["upstream_status"] == "", event
-' "$request_id"
+' "$request_id" < logs/nginx/access.log
 
-docker compose exec -T waf cat "$log_dir/modsec.jsonl" |
-    python3 -c '
+python3 -c '
 import json
 import sys
 
@@ -41,6 +38,6 @@ for line in sys.stdin:
     break
 else:
     sys.exit("No matching WAF audit entry")
-' "$request_id" "$marker"
+' "$request_id" "$marker" < logs/modsec/audit.log
 
 printf '%s\n' 'PASS the proxy and audit logs agree on the request ID, the request never reached the backend, and the cookie and body markers were omitted'

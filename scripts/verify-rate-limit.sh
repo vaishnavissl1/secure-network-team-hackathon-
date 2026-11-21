@@ -40,8 +40,7 @@ done
 curl -fsS "${tls[@]}" -o /dev/null "$base/rest/products/search?q=apple"
 printf 'PASS browsing works after the login-only limiter returned 429\n'
 
-docker compose exec -T waf cat /var/log/modsecurity/audit/access.jsonl |
-    python3 -c '
+python3 -c '
 import json
 import sys
 
@@ -53,9 +52,9 @@ for line in sys.stdin:
     if event["request_id"] in wanted:
         events[event["request_id"]] = event
 passed, rejected = events[passed_id], events[rejected_id]
-assert passed["limit_result"] == "PASSED" and passed["upstream_status"] in {"400", "401"}, passed
-assert rejected["limit_result"] == "REJECTED" and rejected["upstream_status"] == "", rejected
-' "$admitted_id" "$rejected_id"
+assert passed["limit_req_status"] == "PASSED" and passed["upstream_status"] in {"400", "401"}, passed
+assert rejected["status"] == 429 and rejected["limit_req_status"] == "REJECTED" and rejected["upstream_status"] == "", rejected
+' "$admitted_id" "$rejected_id" < logs/nginx/access.log
 
 sleep 6
 read -r recovery_status _ <<< "$(login_probe)"
