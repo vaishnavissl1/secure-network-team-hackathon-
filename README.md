@@ -17,7 +17,7 @@ Run `bash scripts/down.sh` when you need to stop the lab. Keep lab credentials, 
 
 ## Correlate proxy and WAF events
 
-Run `bash scripts/verify-waf.sh` to check effective blocking mode and trace a reserved, harmless readiness request. Rule `10001` is a lab check. Its result verifies the WAF and logging path for that request.
+Run `bash scripts/verify-waf.sh` to check effective blocking mode and trace a harmless request with an unsupported media type. It verifies that CRS rule `920420` contributes to an inbound block by rule `949110` and that the audit event matches the proxy record.
 
 nginx returns `X-Request-ID` on successful and denied requests. Both logs are in the project’s `edge-logs` Docker volume. The nginx record has `request_id`, `status`, `upstream_status`, `limit_result`, `method`, `uri`, and `time`. A WAF event uses `transaction.unique_id` and reports rule IDs in `transaction.messages[].details.ruleId`. An allowed request can have only a proxy record. The access log uses an empty string for upstream status or limiter result when that phase did not run. WAF messages can include match details, so use sanitized fields in shared evidence.
 
@@ -31,7 +31,7 @@ For a before/after comparison inside the isolated lab, set `SHIELD_RULE_ENGINE=D
 
 ## Tuning notes
 
-Start with CRS paranoia level 1 and inbound threshold 5. The before-CRS file has the readiness rule and zero tuning exclusions. Add an exclusion only after a benign request fails and the audit log identifies the rule and input field. Record the request ID, scoped change, and retest outcome.
+Start with CRS paranoia level 1 and inbound threshold 5. The before-CRS file starts with zero tuning exclusions. Add an exclusion only after a benign request fails and the audit log identifies the rule and input field. Record the request ID, scoped change, and retest outcome.
 
 ## Verify the login limiter
 

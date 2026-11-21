@@ -8,8 +8,8 @@ docker compose exec -T waf cat /etc/modsecurity.d/modsecurity.conf |
 tls=(--noproxy '*' --cacert certs/server.crt --resolve shield.local:8443:127.0.0.1 --max-time 5)
 marker='shield-wall-audit-parts-check'
 read -r status request_id < <(
-    curl -sS "${tls[@]}" --cookie "probe=$marker" -o /dev/null \
-        -w '%{http_code} %header{x-request-id}\n' 'https://shield.local:8443/__shield_wall_waf_probe'
+    curl -sS "${tls[@]}" --cookie "probe=$marker" -H "Content-Type: application/x-shield-wall-check" --data "$marker" -o /dev/null \
+        -w '%{http_code} %header{x-request-id}\n' 'https://shield.local:8443/__shield_wall_crs_probe'
 )
 [[ "$status" == 403 && "$request_id" =~ ^[[:xdigit:]]{32}$ ]]
 printf 'PASS inbound WAF probe returned 403 with request ID %s\n' "$request_id"
@@ -33,12 +33,14 @@ for line in sys.stdin:
     transaction = json.loads(line)["transaction"]
     if transaction["unique_id"] != sys.argv[1]:
         continue
-    assert sys.argv[2] not in line, "Cookie marker was written to the audit log"
+    assert sys.argv[2] not in line, "Synthetic cookie or body marker was written to the audit log"
     assert transaction["is_interrupted"] is True, "WAF did not interrupt the transaction"
-    assert any(str(message["details"]["ruleId"]) == "10001" for message in transaction["messages"])
+    rule_ids = {str(message["details"]["ruleId"]) for message in transaction["messages"]}
+    assert {"920420", "949110"} <= rule_ids, rule_ids
+    print("PASS CRS policy rule 920420 and inbound blocking rule 949110 were logged")
     break
 else:
     sys.exit("No matching WAF audit entry")
 ' "$request_id" "$marker"
 
-printf '%s\n' 'PASS the proxy and audit logs agree on the request ID, the request never reached the backend, and the cookie marker was omitted'
+printf '%s\n' 'PASS the proxy and audit logs agree on the request ID, the request never reached the backend, and the cookie and body markers were omitted'
