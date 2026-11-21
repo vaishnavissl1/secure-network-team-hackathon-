@@ -1,0 +1,14 @@
+run_id=20261121-105807  base=https://127.0.0.1:8443  -> tests/results/after-blocking.jsonl
+[attack suite]
+  [PASS] atk-sqli-01  status=403 rid=c1620896d0cd698e8598b828aeff4ed5 (34ms)
+  [PASS] atk-xss-01   status=403 rid=4ac18c9a61be7d4936ab424e7f7319ed (23ms)
+  [PASS] atk-trav-01  status=403 rid=04313faea80fd8dc6e8dd8982b88bf13 (21ms)
+  [PASS] atk-trav-02  status=400 rid=db610bcb0aeeda6ea5b15845f28c958b (8ms)
+  [PASS] atk-cmdi-01  status=403 rid=7b708e8b94269dd998536759aa586351 (15ms)
+  [PASS] atk-scan-01  status=403 rid=98790a4cf62eb341c69a76c3325ba39a (11ms)
+  -- brute-force scenario --
+  [PASS] atk-brute-pre status=200 rid=8c5ec360719cd825fbcc5f22a297d06f (28ms)
+  [PASS] atk-brute-post status=200 rid=26b1a7fe0423723f250f8d6e2e92e16b (17ms)
+  brute: admitted=5 rejected(429)=20 other=0 recovered=yes
+done -> tests/results/after-blocking.jsonl
+next: python dashboard/summarize.py --results tests/results/after-blocking.jsonl --access logs/nginx/access.log --audit logs/modsec/audit.log --out dashboard/alerts.json

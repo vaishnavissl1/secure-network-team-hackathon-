@@ -6,3 +6,12 @@
 *.pcap
 *.pcapng
 __pycache__/
+
+# Person B generated output
+/tests/results/
+/dashboard/alerts.json
+*.pyc
+certs/server.key
+certs/server.crt
+
+/dashboard/site/

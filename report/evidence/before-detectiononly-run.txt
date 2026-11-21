@@ -1,0 +1,14 @@
+run_id=20261121-105739  base=https://127.0.0.1:8443  -> tests/results/before-detectiononly.jsonl
+[attack suite]
+  [FAIL] atk-sqli-01  status=500 rid=f130b21e9c807995a1cfbaa0ef3983f9 (36ms)
+  [FAIL] atk-xss-01   status=200 rid=442d5a1dce2ce49d8f9752e496a7dc84 (32ms)
+  [FAIL] atk-trav-01  status=200 rid=78e50e75314c1a43b1b0df08fd2003a9 (6070ms)
+  [PASS] atk-trav-02  status=400 rid=5385b107abd2a094ed228acce3aa46dc (7ms)
+  [FAIL] atk-cmdi-01  status=200 rid=3229cf512dd8760f464d0f645a49d0fc (21ms)
+  [FAIL] atk-scan-01  status=200 rid=8a63b9a4894100afdd2f7dbc32ff7562 (28ms)
+  -- brute-force scenario --
+  [PASS] atk-brute-pre status=200 rid=7dc2e673d6285f730447ffe85476b227 (24ms)
+  [PASS] atk-brute-post status=200 rid=0001f16101c9056c8dc196ff9c0bac2d (21ms)
+  brute: admitted=5 rejected(429)=20 other=0 recovered=yes
+done -> tests/results/before-detectiononly.jsonl
+next: python dashboard/summarize.py --results tests/results/before-detectiononly.jsonl --access logs/nginx/access.log --audit logs/modsec/audit.log --out dashboard/alerts.json

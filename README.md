@@ -2,6 +2,8 @@
 
 Shield Wall protects a local OWASP Juice Shop lab with nginx, ModSecurity, and the OWASP Core Rule Set. Run the integrated stack in the Ubuntu demo VM with VirtualBox NAT enabled.
 
+See the [laptop evaluator guide](report/DEMO.md) for startup, browser URLs, a six-minute walkthrough, and instructions to rebuild the Estate interface. The [verification report](report/REPORT.md) identifies the source of each result.
+
 ## Start and check the edge
 
 On the VM, use Docker Compose v2, Bash, OpenSSL, curl, and Python 3. The Compose file pins the two cached image digests and disables pulls.
@@ -38,7 +40,7 @@ SHIELD_RULE_ENGINE=On docker compose up -d --force-recreate waf
 
 ## Tuning notes
 
-Start with CRS paranoia level 1 and inbound threshold 5. The before-CRS file starts with zero tuning exclusions. Add an exclusion only after a benign request fails and the audit log identifies the rule and input field. Record the request ID, scoped change, and retest outcome.
+Start with CRS paranoia level 1 and inbound threshold 5. The before-CRS file has one scoped media-type adjustment for Juice Shop polling. See report/tuning-notes.md for the browser evidence. Add an exclusion only after a benign request fails and the audit log identifies the rule and input field. Record the request ID, scoped change, and retest outcome.
 
 ## Verify the login limiter
 
