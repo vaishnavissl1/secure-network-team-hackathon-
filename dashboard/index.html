@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PS6 Shield Wall — WAF Dashboard</title>
+<!-- Self-contained: no external scripts/fonts, works fully offline. -->
+<style>
+  :root{
+    --bg:#0f1720; --panel:#172230; --ink:#e6edf3; --muted:#9fb0c0; --line:#243444;
+    --ok:#2ec971; --bad:#ff5c5c; --warn:#f2b84b; --accent:#4f9cf0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;padding:20px}
+  h1{font-size:20px;margin:0 0 2px} .sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+  .grid{display:grid;gap:14px}
+  .tiles{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .tile .n{font-size:30px;font-weight:700;line-height:1}
+  .tile .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em;margin-top:6px}
+  .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.row2{grid-template-columns:1fr}}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+  th{color:var(--muted);font-weight:600}
+  td.uri{max-width:360px;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,Consolas,monospace}
+  .pill{padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .p403{background:rgba(255,92,92,.15);color:var(--bad)}
+  .p429{background:rgba(242,184,75,.15);color:var(--warn)}
+  .p2xx{background:rgba(46,201,113,.15);color:var(--ok)}
+  .pNA{background:rgba(159,176,192,.15);color:var(--muted)}
+  .bar{height:22px;border-radius:5px;background:var(--accent)}
+  .barrow{display:grid;grid-template-columns:90px 1fr 40px;gap:8px;align-items:center;margin:6px 0}
+  .barrow .k{color:var(--muted);font-size:13px;text-transform:capitalize}
+  .gauge{height:14px;border-radius:999px;background:#23344a;overflow:hidden}
+  .gauge > div{height:100%;background:var(--ok)}
+  code{font-family:ui-monospace,Consolas,monospace}
+  .err{color:var(--warn)}
+</style>
+</head>
+<body>
+  <h1>PS6 “Shield Wall” — WAF Dashboard</h1>
+  <div class="sub" id="meta">loading…</div>
+
+  <div class="grid tiles" id="tiles"></div>
+
+  <div class="row2" style="margin-top:14px">
+    <div class="panel">
+      <div class="l" style="color:var(--muted);font-size:12px;margin-bottom:8px">BLOCKS BY ATTACK TYPE</div>
+      <div id="bytype"></div>
+    </div>
+    <div class="panel">
+      <div class="l" style="color:var(--muted);font-size:12px;margin-bottom:8px">TOP CRS RULES FIRED</div>
+      <table id="rules"><thead><tr><th>rule</th><th>cat</th><th>count</th><th>msg</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <div class="l" style="color:var(--muted);font-size:12px;margin-bottom:8px">REQUESTS (each row traces to its request-id)</div>
+    <div style="overflow:auto;max-height:420px">
+      <table id="rows"><thead><tr>
+        <th>case</th><th>suite</th><th>status</th><th>uri</th><th>request-id</th><th>rules</th><th>result</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+<script>
+const $ = s => document.querySelector(s);
+function pill(status){
+  if(status===403) return '<span class="pill p403">403</span>';
+  if(status===429) return '<span class="pill p429">429</span>';
+  if(status && status>=200 && status<400) return `<span class="pill p2xx">${status}</span>`;
+  return '<span class="pill pNA">'+(status??'—')+'</span>';
+}
+function tile(n,l,cls){return `<div class="panel tile"><div class="n ${cls||''}">${n}</div><div class="l">${l}</div></div>`;}
+
+async function load(){
+  let d=null, src='alerts.json';
+  try{ d = await (await fetch('alerts.json',{cache:'no-store'})).json(); }
+  catch(e){
+    try{ d = await (await fetch('alerts.sample.json',{cache:'no-store'})).json(); src='alerts.sample.json (SAMPLE)'; }
+    catch(e2){ $('#meta').innerHTML='<span class="err">No alerts.json yet. Run: python dashboard/summarize.py …</span>'; return; }
+  }
+  const b=d.benign||{}, a=d.attacks||{}, t=d.totals||{};
+  $('#meta').innerHTML = `source: <code>${src}</code> · run <code>${d.run_id||'?'}</code> · generated ${d.generated_at||'?'}`;
+
+  const passPct = Math.round((b.pass_rate||0)*100);
+  $('#tiles').innerHTML = [
+    tile(t.requests??0,'Total requests'),
+    tile(t.blocked??0,'WAF blocks (403)','bad'),
+    tile(t.allowed??0,'Allowed (2xx/3xx)','ok'),
+    tile(`${b.passed??0}/${b.total??0}`,'Benign passed',(b.ok?'ok':'bad')),
+    `<div class="panel tile"><div class="n ${b.ok?'ok':'bad'}">${passPct}%</div>
+       <div class="l">Benign pass-rate (target 95%)</div>
+       <div class="gauge" style="margin-top:8px"><div style="width:${passPct}%;background:${b.ok?'var(--ok)':'var(--bad)'}"></div></div></div>`,
+    tile((a.exploit_ok?'✔':'✘'),'5 exploit classes blocked',(a.exploit_ok?'ok':'bad')),
+    tile(`${(a.bruteforce||{}).rejected??0}`,'Brute-force 429s',(a.bruteforce_ok?'ok':'warn')),
+  ].join('');
+
+  // blocks by type bar chart (pure SVG/divs)
+  const bt = d.by_type||{}; const max = Math.max(1,...Object.values(bt));
+  $('#bytype').innerHTML = Object.keys(bt).length
+    ? Object.entries(bt).sort((x,y)=>y[1]-x[1]).map(([k,v])=>
+        `<div class="barrow"><span class="k">${k}</span>
+           <div class="bar" style="width:${Math.max(3,v/max*100)}%"></div><span>${v}</span></div>`).join('')
+    : '<div class="l" style="color:var(--muted)">no rule hits yet</div>';
+
+  $('#rules tbody').innerHTML = (d.top_rules||[]).map(r=>
+    `<tr><td><code>${r.id}</code></td><td>${r.category||''}</td><td>${r.count}</td>
+       <td class="uri">${(r.msg||'').replace(/</g,'&lt;')}</td></tr>`).join('')
+    || '<tr><td colspan="4" class="l">none</td></tr>';
+
+  $('#rows tbody').innerHTML = (d.rows||[]).map(r=>
+    `<tr><td><code>${r.case_id||''}</code></td><td>${r.suite||''}</td><td>${pill(r.status)}</td>
+       <td class="uri" title="${(r.uri||'').replace(/"/g,'&quot;')}">${(r.uri||'').replace(/</g,'&lt;')}</td>
+       <td><code>${r.request_id? String(r.request_id).slice(0,8):'—'}</code></td>
+       <td>${(r.rule_ids||[]).join(', ')||'—'}</td>
+       <td class="${r.passed?'ok':'bad'}">${r.passed?'pass':'fail'}</td></tr>`).join('');
+}
+load();
+setInterval(load, 4000); // auto-refresh so live attack runs appear
+</script>
+</body>
+</html>

@@ -1,0 +1,382 @@
+{
+  "run_id": "selftest",
+  "generated_at": "2026-11-21 10:40:11",
+  "totals": {
+    "requests": 25,
+    "allowed": 18,
+    "blocked": 5
+  },
+  "benign": {
+    "passed": 18,
+    "total": 20,
+    "pass_rate": 0.9,
+    "target": 0.95,
+    "ok": false
+  },
+  "attacks": {
+    "exploit": {
+      "sqli": {
+        "blocked": true,
+        "status": 403,
+        "rule_ids": []
+      },
+      "xss": {
+        "blocked": true,
+        "status": 403,
+        "rule_ids": []
+      },
+      "traversal": {
+        "blocked": true,
+        "status": 403,
+        "rule_ids": []
+      },
+      "cmdi": {
+        "blocked": true,
+        "status": 403,
+        "rule_ids": []
+      },
+      "scanner": {
+        "blocked": true,
+        "status": 403,
+        "rule_ids": []
+      }
+    },
+    "exploit_ok": true,
+    "bruteforce": {
+      "admitted": 0,
+      "rejected": 0,
+      "other": 0,
+      "recovered": false
+    },
+    "bruteforce_ok": false
+  },
+  "by_type": {},
+  "top_rules": [],
+  "rows": [
+    {
+      "case_id": "ben-01",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/1",
+      "status": 200,
+      "request_id": "rid-1",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-02",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/2",
+      "status": 200,
+      "request_id": "rid-2",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-03",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/3",
+      "status": 200,
+      "request_id": "rid-3",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-04",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/4",
+      "status": 200,
+      "request_id": "rid-4",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-05",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/5",
+      "status": 200,
+      "request_id": "rid-5",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-06",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/6",
+      "status": 200,
+      "request_id": "rid-6",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-07",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/7",
+      "status": 200,
+      "request_id": "rid-7",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-08",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/8",
+      "status": 200,
+      "request_id": "rid-8",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-09",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/9",
+      "status": 200,
+      "request_id": "rid-9",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-10",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/10",
+      "status": 200,
+      "request_id": "rid-10",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-11",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/11",
+      "status": 200,
+      "request_id": "rid-11",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-12",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/12",
+      "status": 200,
+      "request_id": "rid-12",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-13",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/13",
+      "status": 200,
+      "request_id": "rid-13",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-14",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/14",
+      "status": 200,
+      "request_id": "rid-14",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-15",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/15",
+      "status": 200,
+      "request_id": "rid-15",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-16",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/16",
+      "status": 200,
+      "request_id": "rid-16",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-17",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/17",
+      "status": 200,
+      "request_id": "rid-17",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-18",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/ok/18",
+      "status": 200,
+      "request_id": "rid-18",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "ben-19",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/timeout/19",
+      "status": null,
+      "request_id": null,
+      "passed": false,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": "timeout"
+    },
+    {
+      "case_id": "ben-20",
+      "suite": "benign",
+      "method": "GET",
+      "uri": "/timeout/20",
+      "status": null,
+      "request_id": null,
+      "passed": false,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": "timeout"
+    },
+    {
+      "case_id": "atk-sqli",
+      "suite": "sqli",
+      "method": "GET",
+      "uri": "/sqli",
+      "status": 403,
+      "request_id": "a-sqli",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "atk-xss",
+      "suite": "xss",
+      "method": "GET",
+      "uri": "/xss",
+      "status": 403,
+      "request_id": "a-xss",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "atk-traversal",
+      "suite": "traversal",
+      "method": "GET",
+      "uri": "/traversal",
+      "status": 403,
+      "request_id": "a-traversal",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "atk-cmdi",
+      "suite": "cmdi",
+      "method": "GET",
+      "uri": "/cmdi",
+      "status": 403,
+      "request_id": "a-cmdi",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    },
+    {
+      "case_id": "atk-scanner",
+      "suite": "scanner",
+      "method": "GET",
+      "uri": "/scanner",
+      "status": 403,
+      "request_id": "a-scanner",
+      "passed": true,
+      "limiter": null,
+      "upstream_status": null,
+      "rule_ids": [],
+      "note": ""
+    }
+  ]
+}

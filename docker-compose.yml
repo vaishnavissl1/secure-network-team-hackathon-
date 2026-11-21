@@ -1,0 +1,68 @@
+name: ps6-shieldwall
+
+# PS6 "Shield Wall": a legacy vulnerable app (Juice Shop) protected at the edge
+# by an nginx reverse proxy running ModSecurity + the OWASP Core Rule Set v4.
+# Everything runs locally. No internet dependency on the demo path.
+
+services:
+  juice-shop:
+    image: bkimminich/juice-shop
+    container_name: ps6-juice-shop
+    restart: unless-stopped
+    # Not published to the host: the app is only reachable THROUGH the WAF.
+    expose:
+      - "3000"
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "/nodejs/bin/node", "-e", "require('http').get('http://127.0.0.1:3000/rest/admin/application-version',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  waf:
+    image: owasp/modsecurity-crs:nginx
+    container_name: ps6-waf
+    restart: unless-stopped
+    depends_on:
+      juice-shop:
+        condition: service_healthy
+    ports:
+      - "8080:8080"   # HTTP  (redirects to HTTPS)
+      - "8443:8443"   # HTTPS (TLS termination happens here)
+    environment:
+      # --- reverse proxy target ---
+      BACKEND: "http://juice-shop:3000"
+      SERVER_NAME: "shield.local"
+      PORT: "8080"
+      SSL_PORT: "8443"
+      NGINX_ALWAYS_TLS_REDIRECT: "on"       # force HTTP -> HTTPS
+      # --- CRS v4 engine ---
+      MODSEC_RULE_ENGINE: "On"              # blocking mode
+      BLOCKING_PARANOIA: "1"                # PL1: minimal false positives (tune up later if wanted)
+      ANOMALY_INBOUND: "5"                  # standard CRS threshold
+      ANOMALY_OUTBOUND: "4"
+      # --- TLS: our own cert for the hostname, TLS 1.2+ only ---
+      SSL_CERT_FILE: "/etc/nginx/conf/server.crt"
+      SSL_CERT_KEY_FILE: "/etc/nginx/conf/server.key"
+      SSL_PROTOCOLS: "TLSv1.2 TLSv1.3"
+      # --- audit logging to a file the dashboard can read ---
+      MODSEC_AUDIT_ENGINE: "RelevantOnly"   # log only requests that trip a rule
+      MODSEC_AUDIT_LOG_FORMAT: "JSON"
+      MODSEC_AUDIT_LOG_TYPE: "Serial"
+      MODSEC_AUDIT_LOG: "/var/log/modsec/audit.log"
+      MODSEC_AUDIT_STORAGE_DIR: "/var/log/modsec/"
+    volumes:
+      - ./certs/server.crt:/etc/nginx/conf/server.crt:ro
+      - ./certs/server.key:/etc/nginx/conf/server.key:ro
+      # Runtime tuning: exclusions load BEFORE the CRS rules (correct per OWASP docs).
+      - ./waf/modsecurity-override.conf:/etc/modsecurity.d/modsecurity-override.conf:ro
+      # Shared log volume for the summarizer + dashboard.
+      - ./logs/modsec:/var/log/modsec
+    networks:
+      - edge
+
+networks:
+  edge:
+    driver: bridge

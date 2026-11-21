@@ -1,0 +1,5 @@
+{"transaction": {"unique_id": "r-sqli", "messages": [{"details": {"ruleId": "942100", "msg": "SQL Injection", "match": "ARGS:q"}}]}}
+{"transaction": {"unique_id": "r-xss", "messages": [{"details": {"ruleId": "941100", "msg": "XSS", "match": "ARGS:q"}}]}}
+{"transaction": {"unique_id": "r-traversal", "messages": [{"details": {"ruleId": "930110", "msg": "Path Traversal", "match": "REQUEST_URI"}}]}}
+{"transaction": {"unique_id": "r-cmdi", "messages": [{"details": {"ruleId": "932160", "msg": "OS Command Injection", "match": "ARGS:q"}}]}}
+{"transaction": {"unique_id": "r-scanner", "messages": [{"details": {"ruleId": "913100", "msg": "Scanner UA", "match": "REQUEST_HEADERS:User-Agent"}}]}}
