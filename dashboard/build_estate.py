@@ -31,7 +31,7 @@ subprocess.run([npm,"run","build","--","--webpack"],cwd=project,check=True,
 out=project/"out"
 site=root/"dashboard/site"
 route_files = [p.name for p in out.iterdir() if p.name.startswith("__next.") or p.suffix == ".txt"]
-for rel in ("index.html","controls","evidence","demo","_next","hero-image.png","favicon.ico",*route_files):
+for rel in ("index.html","controls","evidence","activity","demo","_next","hero-image.png","favicon.ico",*route_files):
     src=out/rel
     if src.is_dir():
         shutil.copytree(src,site/rel,dirs_exist_ok=True)

@@ -9,7 +9,7 @@ type Summary={run_id:string;generated_at:string;benign:{passed:number;total:numb
 type Page="overview"|"controls"|"evidence"|"demo";
 const info={
   controls:["Edge controls","Follow a request through the network edge, from the TLS handshake to a policy decision."],
-  evidence:["Request evidence","Find a case and compare its response ID with the corresponding entry in the proxy log."],
+  evidence:["Request evidence","Find a case from the latest published test run. To see browser actions as they happen, open Live activity."],
   demo:["Evaluator guide","Walk through the running application and its evidence in five to seven minutes."]
 };
 function useRun(){
@@ -57,8 +57,8 @@ function Evidence({data}:{data:Summary}){
 function Guide(){return <div className="guide">{[
   ["1 minute","Open the storefront","Visit https://localhost:8443 through the SSH tunnel. Browse and search for a product. Show the loopback port and the private backend on the Controls page."],
   ["2 minutes","Walk through the controls","Show the TLS versions, the WAF rule IDs, and the request ID for the harmless policy check. Explain how nginx admits early login attempts and rejects excess requests."],
-  ["2 minutes","Trace a shopper request","Open Evidence and search for ben-20. Show the HTTP response, upstream status, and full request ID. Use that ID to locate the same event in logs/nginx/access.log."],
-  ["1 minute","Repeat one check","From the project directory run bash scripts/verify-waf.sh. It prints a fresh 403 request ID and verifies its audit rules. The UI shows the latest published run; bash scripts/run_demo.sh publishes another complete defensive run."]
+  ["2 minutes","Trace a shopper request","Open Live activity, sign in to the storefront, and filter for /rest/user/login. Show the 200, upstream 200, and request ID. Evidence holds the latest automated test report."],
+  ["1 minute","Repeat one check","From the project directory run bash scripts/verify-waf.sh. It prints a fresh 403 request ID and verifies its audit rules. Paste that ID in Live activity to show the live decision. The published test report refreshes after bash scripts/run_demo.sh."]
 ].map(([duration,title,body])=><article key={title}><small>{duration}</small><div><h2>{title}</h2><p>{body}</p></div></article>)}</div>}
 export function Observatory({page}:{page:Page}){
   const {data,error}=useRun();

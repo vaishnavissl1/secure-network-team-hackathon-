@@ -10,7 +10,7 @@ Shield Wall is a 23CSE336 Secure Networks Hackathon project that puts an HTTPS s
 | Reverse proxy | nginx terminates TLS 1.2 and 1.3, redirects HTTP, and forwards accepted requests to Juice Shop |
 | Web application firewall | ModSecurity in blocking mode with CRS, paranoia level 1 and inbound threshold 5 |
 | Login rate limiter | Per client IP, 1 request per second with a burst allowance of 5 for login POSTs. Excess requests get HTTP 429. |
-| Logging and monitoring | JSON nginx access log, relevant ModSecurity audit events, request-ID correlation, and a four-page dashboard |
+| Logging and monitoring | JSON nginx access log, relevant ModSecurity audit events, request-ID correlation, and a dashboard with live activity and published test evidence |
 
 ```text
 Windows browser ── SSH tunnel ── Ubuntu VM
@@ -56,7 +56,7 @@ Keep shopper credentials, the TLS private key, and raw logs local. Run evidence 
 
 ## Open the evaluator dashboard
 
-For the already deployed laptop demo, start the VM and use the loopback SSH forwards in the [six-minute demo guide](report/DEMO.md). Open the [dashboard](http://127.0.0.1:8099/) and [storefront](https://localhost:8443/). The dashboard has Overview, Controls, Evidence, and Demo Guide pages.
+For the already deployed laptop demo, start the VM and use the loopback SSH forwards in the [six-minute demo guide](report/DEMO.md). Open the [dashboard](http://127.0.0.1:8099/) and [storefront](https://localhost:8443/). Open [Live activity](http://127.0.0.1:8099/activity/) to watch the VM gateway during the demo. Use Evidence for the latest published test run. Overview, Controls, and Demo Guide explain the configuration and walkthrough.
 
 For a fresh UI deployment, build from the licensed Estate Next.js project on your laptop. The repository contains the project-specific overlay. The build requires the licensed template and Node/npm. The resulting site runs offline. The demo guide includes the transfer command.
 
@@ -69,6 +69,10 @@ After deploying `dashboard/site/` to the VM, serve the UI with:
 ```bash
 python3 dashboard/serve.py
 ```
+
+## Demonstrate live requests
+
+Open the storefront and live activity in separate browser tabs. Sign in to Juice Shop and filter Live activity for `/rest/user/login`. The new login lists HTTP 200, upstream 200, and the request ID. Run `bash scripts/verify-waf.sh` in the VM and search Live activity for its printed request ID. The matching 403 lists the correlated CRS rules. The live view refreshes every two seconds. It exposes a bounded set of recent events from the two VM logs and omits credentials, header values and bodies.
 
 ## Follow a request across the logs
 

@@ -39,8 +39,8 @@ Start the Python server only when the dashboard listener is down. Leave the serv
 | 0–1 min | Storefront, then Overview | Browse the catalog over HTTPS. Show the run ID. Juice Shop has no published port. |
 | 1–2 min | Controls | Show TLS versions, the 403, the two CRS rule IDs and the request ID. The empty upstream status verifies enforcement before the app. |
 | 2–3 min | Login limiter on Controls | Give the measured counts. Early requests reach Juice Shop. Excess requests get 429 from nginx. Browsing and login-endpoint recovery were checked. |
-| 3–4 min | Evidence | Filter for `ben-20`. Copy its request ID and find it in the proxy log with `grep -F -- 'PASTE_ID' logs/nginx/access.log` on the VM. Show the 20/20 result and the genuine successful shopper login. |
-| 4–5 min | VM terminal | Run `bash scripts/verify-waf.sh`. It prints a fresh request ID and verifies the harmless policy block in both logs. This single check leaves the displayed run unchanged. |
+| 3–4 min | Live activity | Sign in to Juice Shop. Search for `/rest/user/login` in Live activity and show HTTP 200 and upstream 200. Evidence separately shows the 20/20 test run. |
+| 4–5 min | VM terminal | Run `bash scripts/verify-waf.sh`. It prints a fresh request ID. Paste the ID into Live activity to show the 403 and its CRS rules from the two logs. |
 | 5–6 min | Controls and the report | Attribute the five attack-category results to the recorded Windows run. Show the mapping table. Explain that a limiter with a burst allowance admits some requests before enforcement. |
 
 To publish another complete defensive run, register an ordinary shopper in the local storefront and keep its login details in your terminal. On the VM run `bash scripts/run_demo.sh` and enter those details when prompted. Each run checks the edge, WAF, limiter and recovery, runs twenty shopper requests, then publishes the correlated evidence. The dashboard refreshes within five seconds. Raw evidence stays under `logs/demo-*/`. The separate `--register` option creates one new disposable account for that run.
