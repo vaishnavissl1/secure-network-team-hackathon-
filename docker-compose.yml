@@ -1,68 +1,68 @@
-name: ps6-shieldwall
-
-# PS6 "Shield Wall": a legacy vulnerable app (Juice Shop) protected at the edge
-# by an nginx reverse proxy running ModSecurity + the OWASP Core Rule Set v4.
-# Everything runs locally. No internet dependency on the demo path.
+name: shield-wall
 
 services:
   juice-shop:
-    image: bkimminich/juice-shop
-    container_name: ps6-juice-shop
-    restart: unless-stopped
-    # Not published to the host: the app is only reachable THROUGH the WAF.
-    expose:
-      - "3000"
-    networks:
-      - edge
+    image: bkimminich/juice-shop@sha256:adaf6a6ca50f772dff7d2fe56972c659e81a61e0dbbe607c2b39fefd436e6153
+    pull_policy: never
+    networks: [backend]
     healthcheck:
-      test: ["CMD", "/nodejs/bin/node", "-e", "require('http').get('http://127.0.0.1:3000/rest/admin/application-version',r=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
-      interval: 5s
-      timeout: 5s
+      test:
+        - CMD
+        - /nodejs/bin/node
+        - -e
+        - >-
+          require('node:http').get('http://127.0.0.1:3000/', response => {
+            response.resume();
+            process.exit(response.statusCode === 200 ? 0 : 1);
+          }).on('error', () => process.exit(1))
+      start_period: 45s
+      interval: 3s
+      timeout: 3s
       retries: 20
-      start_period: 20s
 
   waf:
-    image: owasp/modsecurity-crs:nginx
-    container_name: ps6-waf
-    restart: unless-stopped
+    image: owasp/modsecurity-crs@sha256:697812147e7eada5c668e9728c6439d4663476c69f68635d24fb7878aac0f26a
+    pull_policy: never
     depends_on:
       juice-shop:
         condition: service_healthy
-    ports:
-      - "8080:8080"   # HTTP  (redirects to HTTPS)
-      - "8443:8443"   # HTTPS (TLS termination happens here)
+        restart: true
     environment:
-      # --- reverse proxy target ---
-      BACKEND: "http://juice-shop:3000"
-      SERVER_NAME: "shield.local"
+      BACKEND: http://juice-shop:3000
+      SERVER_NAME: shield.local
       PORT: "8080"
       SSL_PORT: "8443"
-      NGINX_ALWAYS_TLS_REDIRECT: "on"       # force HTTP -> HTTPS
-      # --- CRS v4 engine ---
-      MODSEC_RULE_ENGINE: "On"              # blocking mode
-      BLOCKING_PARANOIA: "1"                # PL1: minimal false positives (tune up later if wanted)
-      ANOMALY_INBOUND: "5"                  # standard CRS threshold
-      ANOMALY_OUTBOUND: "4"
-      # --- TLS: our own cert for the hostname, TLS 1.2+ only ---
-      SSL_CERT_FILE: "/etc/nginx/conf/server.crt"
-      SSL_CERT_KEY_FILE: "/etc/nginx/conf/server.key"
-      SSL_PROTOCOLS: "TLSv1.2 TLSv1.3"
-      # --- audit logging to a file the dashboard can read ---
-      MODSEC_AUDIT_ENGINE: "RelevantOnly"   # log only requests that trip a rule
-      MODSEC_AUDIT_LOG_FORMAT: "JSON"
-      MODSEC_AUDIT_LOG_TYPE: "Serial"
-      MODSEC_AUDIT_LOG: "/var/log/modsec/audit.log"
-      MODSEC_AUDIT_STORAGE_DIR: "/var/log/modsec/"
+      SSL_PROTOCOLS: TLSv1.2 TLSv1.3
+      ACCESSLOG: /dev/null
+      MODSEC_RULE_ENGINE: ${SHIELD_RULE_ENGINE:-On}
+      MODSEC_AUDIT_ENGINE: RelevantOnly
+      MODSEC_AUDIT_LOG_FORMAT: JSON
+      MODSEC_AUDIT_LOG_PARTS: AHZ
+      MODSEC_AUDIT_LOG_RELEVANT_STATUS: "^403$"
+      MODSEC_AUDIT_LOG: /var/log/modsecurity/audit/modsec.jsonl
+      BLOCKING_PARANOIA: "1"
+      ANOMALY_INBOUND: "5"
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8443:8443"
     volumes:
       - ./certs/server.crt:/etc/nginx/conf/server.crt:ro
       - ./certs/server.key:/etc/nginx/conf/server.key:ro
-      # Runtime tuning: exclusions load BEFORE the CRS rules (correct per OWASP docs).
-      - ./waf/modsecurity-override.conf:/etc/modsecurity.d/modsecurity-override.conf:ro
-      # Shared log volume for the summarizer + dashboard.
-      - ./logs/modsec:/var/log/modsec
-    networks:
-      - edge
+      - ./waf/default.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
+      - ./waf/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
+      - ./waf/nginx-ratelimit.conf:/etc/nginx/conf.d/00-shield-rate.conf:ro
+      - edge-logs:/var/log/modsecurity/audit
+    networks: [edge, backend]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--cacert", "/etc/nginx/conf/server.crt", "https://localhost:8443/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
 networks:
-  edge:
-    driver: bridge
+  edge: {}
+  backend:
+    internal: true
+
+volumes:
+  edge-logs:
