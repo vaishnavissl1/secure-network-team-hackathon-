@@ -23,6 +23,13 @@ fi
 echo "== 1. replay attack + benign (writes one row per request) =="
 python tests/runner.py --suite all --base "$BASE" --out "$RESULTS" || true
 
+echo "== 1b. export edge logs from the compose volume (A: access.jsonl + modsec.jsonl) =="
+mkdir -p logs/nginx logs/modsec
+if command -v docker >/dev/null 2>&1 && [ -f docker-compose.yml ]; then
+  docker compose exec -T waf cat /var/log/modsecurity/audit/access.jsonl > logs/nginx/access.log 2>/dev/null     || echo "  (could not export access log; using existing $ACCESS if present)"
+  docker compose exec -T waf cat /var/log/modsecurity/audit/modsec.jsonl > logs/modsec/audit.log 2>/dev/null     || echo "  (could not export audit log; using existing $AUDIT if present)"
+fi
+
 echo "== 2. build the summary from schedule + logs =="
 python dashboard/summarize.py --results "$RESULTS" --access "$ACCESS" --audit "$AUDIT" --out "$ALERTS" || true
 

@@ -133,7 +133,7 @@ def build_summary(result_rows, access_by_id, audit_by_id, run_id=None):
             "case_id": r.get("case_id"), "suite": klass, "method": r.get("method"),
             "uri": r.get("uri"), "status": r.get("status"),
             "request_id": rid, "passed": r.get("passed"),
-            "limiter": (access or {}).get("limit_req_status"),
+            "limiter": (access or {}).get("limit_result", (access or {}).get("limit_req_status")),
             "upstream_status": (access or {}).get("upstream_status"),
             "rule_ids": sorted({h["ruleId"] for h in hits if h["ruleId"]}),
             "note": r.get("note", ""),
