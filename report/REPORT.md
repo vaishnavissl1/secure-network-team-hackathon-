@@ -31,7 +31,7 @@ List each exclusion with evidence (never a global rule removal):
 | Benign case | Rule id | Matched var | Scope (route) | Why |
 |---|---|---|---|---|
 | none | none | none | none | 0 of 20 benign requests were blocked or degraded at PL1 / threshold 5 |
-> Zero false positives, so no exclusion was requested and the original rules are unchanged. See `report/tuning-notes.md`.
+The historical Windows suite had no false positives across its 20 cases. Ubuntu browser testing later found a Socket.IO polling false positive, which was addressed with a scoped media-type adjustment. See [tuning notes](tuning-notes.md).
 
 ## 4. Alert summary by attack type
 Each blocked request is counted once under its primary attack type (run `20261121-105637`):
@@ -44,12 +44,12 @@ Each blocked request is counted once under its primary attack type (run `2026112
 | OS command injection | 1 | 930120, 932160 |
 | Scanner user-agent (`sqlmap/1.8`) | 1 | 913100 |
 
-Every block also fires 949110 (inbound anomaly score exceeded). Totals: 53 requests, 5 WAF blocks (403), 20 rate-limited (429), 22 allowed (2xx/3xx). 403 and 429 are different mechanisms and are counted separately.
+Every block also fires 949110 (inbound anomaly score exceeded). Of 53 requests, 5 received a WAF 403, 20 received a limiter 429, 22 succeeded, 5 reached the app and returned 401, and 1 received an nginx 400.
 
 ## 5. Brute-force evidence
 Ordered responses: valid login (200) → burst of 25 wrong-password logins: first 5 admitted (401), remaining 20 rejected (429) → valid login recovers (200).
 This does **not** mean every login was blocked: the burst allowance admits the first 5.
-Native nginx `limit_req` is the control; the optional ModSec counter (if shown) is demoed separately.
+Native nginx `limit_req` enforces the login rate limit.
 
 ## 6. Before / after
 "Forwarded in detection mode, denied in blocking mode" — same requests, `SecRuleEngine DetectionOnly` vs `On`. Engine change applied with `up -d --force-recreate waf`, not `restart`. Evidence in `report/evidence/`.
