@@ -30,7 +30,8 @@ subprocess.run([npm,"run","build","--","--webpack"],cwd=project,check=True,
                env={**os.environ,"NEXT_TELEMETRY_DISABLED":"1"})
 out=project/"out"
 site=root/"dashboard/site"
-for rel in ("index.html","controls","evidence","demo","_next","hero-image.png"):
+route_files = [p.name for p in out.iterdir() if p.name.startswith("__next.") or p.suffix == ".txt"]
+for rel in ("index.html","controls","evidence","demo","_next","hero-image.png","favicon.ico",*route_files):
     src=out/rel
     if src.is_dir():
         shutil.copytree(src,site/rel,dirs_exist_ok=True)
