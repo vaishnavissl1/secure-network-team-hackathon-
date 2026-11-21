@@ -33,6 +33,7 @@ services:
       - ./certs/server.key:/etc/nginx/conf/server.key:ro
       - ./waf/default.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
       - ./waf/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
+      - ./waf/nginx-ratelimit.conf:/etc/nginx/conf.d/00-shield-rate.conf:ro
       - edge-logs:/var/log/modsecurity/audit
     networks: [edge, backend]
 

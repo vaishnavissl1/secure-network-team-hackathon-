@@ -32,3 +32,7 @@ For a before/after comparison inside the isolated lab, set `SHIELD_RULE_ENGINE=D
 ## Tuning notes
 
 Start with CRS paranoia level 1 and inbound threshold 5. The before-CRS file has the readiness rule and zero tuning exclusions. Add an exclusion only after a benign request fails and the audit log identifies the rule and input field. Record the request ID, scoped change, and retest outcome.
+
+## Verify the login limiter
+
+Run `bash scripts/verify-rate-limit.sh` on the VM. It sends a bounded set of requests with no credentials to the fixed loopback endpoint and checks the responses, the nginx limiter decision, browsing, and recovery. The login route allows one request per second per client IP with a burst allowance of five. Excess requests are automatically rejected with HTTP 429 while the excess drains. The check reports how many reached the backend and how many nginx rejected. The separate benign suite needs a successful authenticated login with a disposable lab account.

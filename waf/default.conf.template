@@ -17,6 +17,8 @@ server {
     add_header X-Request-ID $request_id always;
     modsecurity_transaction_id $request_id;
     proxy_hide_header X-Request-ID;
+    limit_req zone=shield_login burst=5 nodelay;
+    limit_req_status 429;
     ssl_certificate /etc/nginx/conf/server.crt;
     ssl_certificate_key /etc/nginx/conf/server.key;
     ssl_protocols ${SSL_PROTOCOLS};
