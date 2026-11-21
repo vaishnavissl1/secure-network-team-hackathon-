@@ -1,47 +1,30 @@
-#!/usr/bin/env python3
-"""
-Dashboard server (Person B). Standard library only.
-
-Serves the dashboard directory on LOOPBACK ONLY (127.0.0.1) so nothing is
-exposed on the network. It serves alerts.json (produced by summarize.py) and
-index.html. Run from the repo root:
-
-    python dashboard/serve.py            # http://127.0.0.1:8099
-    python dashboard/serve.py --port 9000
-
-Demo hygiene: re-run summarize.py after each attack run to refresh alerts.json,
-then reload the page. The page shows the run-id + timestamp so a stale view is obvious.
-"""
+"""Serve the finished evaluator pages and the latest published run on loopback."""
 import argparse
-import http.server
-import os
-import socketserver
+from functools import partial
+from http import HTTPStatus
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlsplit
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+root=Path(__file__).resolve().parent
+class Handler(SimpleHTTPRequestHandler):
+    def translate_path(self,path):
+        if urlsplit(path).path=="/alerts.json":
+            return str(root/"alerts.json")
+        return super().translate_path(path)
+    def list_directory(self,path):
+        self.send_error(HTTPStatus.NOT_FOUND)
+    def end_headers(self):
+        self.send_header("Cache-Control","no-store")
+        super().end_headers()
 
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--port", type=int, default=8099)
-    args = ap.parse_args()
-    os.chdir(HERE)
-
-    class Handler(http.server.SimpleHTTPRequestHandler):
-        def end_headers(self):
-            self.send_header("Cache-Control", "no-store")  # never show a stale run
-            super().end_headers()
-
-        def log_message(self, *a):
-            pass
-
-    with socketserver.TCPServer(("127.0.0.1", args.port), Handler) as httpd:
-        print(f"Dashboard on http://127.0.0.1:{args.port}  (loopback only, Ctrl+C to stop)")
-        print("serving:", HERE)
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\nstopped")
-
-
-if __name__ == "__main__":
-    main()
+if __name__=="__main__":
+    p=argparse.ArgumentParser()
+    p.add_argument("--port",type=int,default=8099)
+    port=p.parse_args().port
+    site=root/"site"
+    if not (site/"demo/index.html").is_file():
+        p.error("Build the Estate static pages with dashboard/build_estate.py and deploy dashboard/site first")
+    with ThreadingHTTPServer(("127.0.0.1",port),partial(Handler,directory=str(site))) as server:
+        print(f"Dashboard http://127.0.0.1:{port}",flush=True)
+        server.serve_forever()

@@ -13,3 +13,5 @@ __pycache__/
 *.pyc
 certs/server.key
 certs/server.crt
+
+/dashboard/site/
