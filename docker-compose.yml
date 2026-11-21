@@ -1,0 +1,35 @@
+name: shield-wall
+
+services:
+  juice-shop:
+    image: bkimminich/juice-shop@sha256:adaf6a6ca50f772dff7d2fe56972c659e81a61e0dbbe607c2b39fefd436e6153
+    pull_policy: never
+    networks: [backend]
+
+  waf:
+    image: owasp/modsecurity-crs@sha256:697812147e7eada5c668e9728c6439d4663476c69f68635d24fb7878aac0f26a
+    pull_policy: never
+    depends_on: [juice-shop]
+    environment:
+      BACKEND: http://juice-shop:3000
+      SERVER_NAME: shield.local
+      PORT: "8080"
+      SSL_PORT: "8443"
+      SSL_PROTOCOLS: TLSv1.2 TLSv1.3
+      SSL_OCSP_STAPLING: "off"
+      MODSEC_RULE_ENGINE: "On"
+      BLOCKING_PARANOIA: "1"
+      ANOMALY_INBOUND: "5"
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - ./certs/server.crt:/etc/nginx/conf/server.crt:ro
+      - ./certs/server.key:/etc/nginx/conf/server.key:ro
+      - ./waf/default.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
+    networks: [edge, backend]
+
+networks:
+  edge: {}
+  backend:
+    internal: true
