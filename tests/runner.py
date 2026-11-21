@@ -13,11 +13,13 @@ Usage:
     python tests/runner.py --suite all --base https://127.0.0.1:8443
 
 Notes:
- - Self-signed TLS on localhost is expected; the runner does NOT verify the cert
-   (TLS validity is checked separately in acceptance.sh with curl --cacert).
+ - The runner trusts the lab certificate and restricts requests to local HTTPS.
  - Every row keeps its case_id even on timeout (request_id=null, passed=false),
    so missing requests stay in the denominator.
 """
+import getpass
+from pathlib import Path
+import uuid
 import argparse
 import json
 import os
@@ -31,7 +33,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cases as C  # noqa: E402
 
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
-_CTX = ssl._create_unverified_context()
+class NoRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = None
 # Connect to 127.0.0.1 but present the real vhost so CRS rule 920350 (numeric-IP Host) stays quiet.
 HOST_HEADER = "shield.local:8443"
 _CFG = {"host": HOST_HEADER}
@@ -50,8 +57,8 @@ def _send(base, case, timeout):
                                  method=case.get("method", "GET"))
     t0 = time.time()
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=_CTX) as r:
-            body = r.read(4096).decode("utf-8", "replace")
+        with _OPENER.open(req, timeout=timeout) as r:
+            body = r.read().decode("utf-8", "replace")
             rid = r.headers.get("X-Request-ID")
             return r.status, rid, int((time.time() - t0) * 1000), "", body
     except urllib.error.HTTPError as e:
@@ -74,10 +81,23 @@ def _score(case, status, body):
     if exp["type"] == "rejected_edge":
         return status in (400, 403)
     if exp["type"] == "allowed":
-        if status is None or not (200 <= status < 400):
+        if status != 200:
             return False
-        bc = exp.get("body_contains")
-        return (bc.lower() in (body or "").lower()) if bc else True
+        path = case["path"].split("?")[0]
+        if path == "/":
+            return "<html" in body.lower()
+        try:
+            obj = json.loads(body)
+            if path == C.LOGIN_PATH:
+                auth = obj["authentication"]
+                return bool(auth["token"]) and auth.get("umail") == C.GOOD_LOGIN["email"]
+            if path == "/rest/products/search":
+                return obj.get("status") == "success" and isinstance(obj.get("data"), list)
+            if path.startswith("/api/Products/"):
+                return str(obj["data"]["id"]) == path.rsplit("/", 1)[-1]
+            return bool(obj) and isinstance(obj, (list, dict))
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return False
     return False
 
 
@@ -141,9 +161,20 @@ def main():
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
+    if args.base not in ("https://127.0.0.1:8443", "https://localhost:8443") or args.host_header != HOST_HEADER:
+        ap.error("Use the local Shield Wall HTTPS endpoint")
+    global _OPENER
+    ca = Path(__file__).resolve().parents[1] / "certs" / "server.crt"
+    _OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+        urllib.request.HTTPSHandler(context=ssl.create_default_context(cafile=str(ca))), NoRedirects())
+    email = os.environ.get("SHIELD_SHOPPER_EMAIL") or input("Lab shopper email: ").strip()
+    password = os.environ.get("SHIELD_SHOPPER_PASSWORD") or getpass.getpass("Lab shopper password: ")
+    if not email or not password:
+        ap.error("A registered lab shopper is required")
+    C.GOOD_LOGIN.update(email=email, password=password)
     _CFG["host"] = args.host_header
     os.makedirs(RESULTS_DIR, exist_ok=True)
-    run_id = time.strftime("%Y%m%d-%H%M%S")
+    run_id = "lab-" + uuid.uuid4().hex[:16]
     out_path = args.out or os.path.join(RESULTS_DIR, f"run-{run_id}.jsonl")
     print(f"run_id={run_id}  base={args.base}  -> {out_path}")
 

@@ -14,8 +14,8 @@ reaches the server). Verify GOOD_LOGIN on your own instance before the scored ru
 BASE = "https://127.0.0.1:8443"
 LOGIN_PATH = "/rest/user/login"
 
-# Default Juice Shop admin credentials (verify on your instance!).
-GOOD_LOGIN = {"email": "admin@juice-sh.op", "password": "admin123"}
+# Populated at runtime with an ordinary lab shopper.
+GOOD_LOGIN = {}
 
 # ---------------------------------------------------------------------------
 # Attack suite: 5 single-request exploit classes (expect a WAF 403 block) +
