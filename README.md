@@ -19,7 +19,7 @@ Run `bash scripts/down.sh` when you need to stop the lab. Keep lab credentials, 
 
 Run `bash scripts/verify-waf.sh` to check effective blocking mode and trace a reserved, harmless readiness request. Rule `10001` is a lab check. Its result verifies the WAF and logging path for that request.
 
-nginx returns `X-Request-ID` on successful and denied requests. Both logs are in the project’s `edge-logs` Docker volume. The nginx record has `request_id`, `status`, `upstream_status`, `limit_result`, `method`, `uri`, and `time`. A WAF event uses `transaction.unique_id` and reports rule IDs in `transaction.messages[].details.ruleId`. An allowed request can have only a proxy record. WAF messages can include match details, so use sanitized fields in shared evidence.
+nginx returns `X-Request-ID` on successful and denied requests. Both logs are in the project’s `edge-logs` Docker volume. The nginx record has `request_id`, `status`, `upstream_status`, `limit_result`, `method`, `uri`, and `time`. A WAF event uses `transaction.unique_id` and reports rule IDs in `transaction.messages[].details.ruleId`. An allowed request can have only a proxy record. The access log uses an empty string for upstream status or limiter result when that phase did not run. WAF messages can include match details, so use sanitized fields in shared evidence.
 
 ```bash
 mkdir -p logs

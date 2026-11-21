@@ -21,7 +21,7 @@ import json
 import sys
 
 event = next(row for row in map(json.loads, sys.stdin) if row["request_id"] == sys.argv[1])
-assert event["status"] == 403 and event["upstream_status"] == "-", event
+assert event["status"] == 403 and event["upstream_status"] == "", event
 ' "$request_id"
 
 docker compose exec -T waf cat "$log_dir/modsec.jsonl" |
@@ -41,4 +41,4 @@ else:
     sys.exit("No matching WAF audit entry")
 ' "$request_id" "$marker"
 
-printf '%s\n' 'PASS the proxy and audit logs agree on the request ID, the backend was bypassed, and the cookie marker was omitted'
+printf '%s\n' 'PASS the proxy and audit logs agree on the request ID, the request never reached the backend, and the cookie marker was omitted'
