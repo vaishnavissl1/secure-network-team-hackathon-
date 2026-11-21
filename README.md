@@ -72,7 +72,7 @@ python3 dashboard/serve.py
 
 ## Demonstrate live requests
 
-Open the storefront and live activity in separate browser tabs. Sign in to Juice Shop and filter Live activity for `/rest/user/login`. The new login lists HTTP 200, upstream 200, and the request ID. Run `bash scripts/verify-waf.sh` in the VM and search Live activity for its printed request ID. The matching 403 lists the correlated CRS rules. The live view refreshes every two seconds. It exposes a bounded set of recent events from the two VM logs and omits credentials, header values and bodies.
+Open the storefront and live activity in separate browser tabs. Live activity can launch the three fixed checks using **Scanner header**, **WAF policy**, or **Login throttling**. Each button selects the verified event from the live logs. Checks are serialized and accept no custom input. Sign in to Juice Shop and filter Live activity for `/rest/user/login`. The new login lists HTTP 200, upstream 200, and the request ID. Run `bash scripts/verify-waf.sh` in the VM and search Live activity for its printed request ID. The matching 403 lists the correlated CRS rules. The live view refreshes every two seconds. It exposes a bounded set of recent events from the two VM logs and omits credentials, header values and bodies.
 
 ## Run acceptance checks
 

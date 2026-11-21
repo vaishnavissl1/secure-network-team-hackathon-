@@ -14,11 +14,22 @@ type RequestRow = {
   signals: string[];
 };
 
+const LIVE_CHECKS = [
+  { label: "Scanner header", path: "/checks/scanner" },
+  { label: "WAF policy", path: "/checks/policy" },
+  { label: "Login throttling", path: "/checks/limiter" },
+];
+
+type LiveCheck = (typeof LIVE_CHECKS)[number];
+
+
 export function LiveActivity() {
   const [rows, setRows] = useState<RequestRow[] | null>(null);
   const [query, setQuery] = useState("");
   const [decision, setDecision] = useState("");
   const [unavailable, setUnavailable] = useState(false);
+  const [running, setRunning] = useState<string | null>(null);
+  const [result, setResult] = useState<{message: string; failed: boolean} | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -50,6 +61,26 @@ export function LiveActivity() {
     };
   }, []);
 
+  async function launch(check: LiveCheck) {
+    setRunning(check.label);
+    setResult(null);
+    try {
+      const response = await fetch(check.path, { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "The check could not run.");
+      if (!data.request_id || !data.message) throw new Error("The gateway evidence was unavailable.");
+      setDecision("");
+      setQuery(data.request_id);
+      setResult({ message: data.message, failed: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The check could not run.";
+      setResult({ message, failed: true });
+    } finally {
+      setRunning(null);
+    }
+  }
+
+
   const search = query.trim().toLowerCase();
   const visible = (rows ?? []).filter(row =>
     (!decision || row.decision === decision) &&
@@ -63,6 +94,16 @@ export function LiveActivity() {
       <p>See recent requests from the VM gateway. Search for a request ID from your browser or terminal.</p>
     </div></div>
     <div className="wrap content">
+      <div className="live-checks">
+        <h2>Run a live check</h2>
+        <p>Each check sends traffic to this lab and selects the matching log entry.</p>
+        <div className="live-check-buttons">
+          {LIVE_CHECKS.map(check => <button key={check.path} type="button"
+            disabled={running !== null} onClick={() => launch(check)}>{check.label}</button>)}
+        </div>
+        {running && <p role="status">Running {running}. The throttling check waits for recovery.</p>}
+        {result && <p role={result.failed ? "alert" : "status"}>{result.message}</p>}
+      </div>
       <div className="activity-filters">
         <label>Search requests
           <input type="search" value={query} onChange={event => setQuery(event.target.value)}

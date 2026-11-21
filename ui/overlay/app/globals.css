@@ -8,3 +8,10 @@
 .activity-count{font-size:14px;color:#495b52;margin-block:12px}
 .activity-count a{text-decoration:underline;text-underline-offset:3px}
 .activity-table td:first-child{white-space:nowrap}
+.live-checks{background:#e9eee2;border:1px solid #cbd8c8;border-radius:8px;padding:18px 20px;margin-bottom:22px}
+.live-checks h2{font-size:21px;margin-bottom:5px}
+.live-checks p{color:#39584a}
+.live-check-buttons{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+.live-check-buttons button{font:inherit;font-weight:650;color:#fff;background:#254e3f;border:1px solid #254e3f;border-radius:5px;padding:9px 14px;cursor:pointer}
+.live-check-buttons button:focus-visible{outline:3px solid #59883e;outline-offset:3px}
+.live-check-buttons button:disabled{opacity:.65;cursor:wait}

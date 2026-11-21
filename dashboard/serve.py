@@ -7,6 +7,9 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
 import re
+import subprocess
+from threading import Lock
+from time import sleep
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
@@ -113,25 +116,117 @@ def activity():
     return response
 
 
+CHECK_LOCK = Lock()
+# These commands target only the existing loopback lab. The caller supplies no options.
+CHECK_COMMANDS = {
+    "/checks/scanner": (
+        "curl", "--disable", "-sS", "--noproxy", "*", "--max-time", "5",
+        "--cacert", "certs/server.crt", "--resolve", "shield.local:8443:127.0.0.1",
+        "-A", "sqlmap/1.8", "-o", "/dev/null",
+        "-w", "%{http_code} %header{x-request-id}\n",
+        "https://shield.local:8443/rest/products/search?q=apple",
+    ),
+    "/checks/policy": ("bash", "scripts/verify-waf.sh"),
+    "/checks/limiter": ("bash", "scripts/verify-rate-limit.sh"),
+}
+CHECK_RULES = {
+    "/checks/scanner": {"913100", "949110"},
+    "/checks/policy": {"920420", "949110"},
+}
+
+
+def run_live_check(path):
+    result = subprocess.run(
+        CHECK_COMMANDS[path], cwd=ROOT.parent, capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=38, check=False,
+    )
+    if result.returncode:
+        return None
+
+    output = result.stdout
+    if path == "/checks/limiter":
+        summary = re.search(r"^PASS rate limiting and recovery: (\d+) admitted to the app, (\d+) automatically rejected, recovery reached the app$", output, re.M)
+        limited = re.findall(r"^Probe \d{2} status 429 request_id ([a-f0-9]{32})$", output, re.M)
+        if not summary or not limited:
+            return None
+        admitted, rejected = map(int, summary.groups())
+        if rejected != len(limited) or admitted + rejected != 12:
+            return None
+        request_id = limited[-1]
+        message = f"HTTP 429 for {rejected}/12 probes. {admitted} reached the app. Browsing and recovery passed."
+        decision = "Rate limited"
+    else:
+        pattern = r"^403 ([a-f0-9]{32})$" if path == "/checks/scanner" else r"^PASS inbound WAF probe returned 403 with request ID ([a-f0-9]{32})$"
+        match = re.search(pattern, output, re.M)
+        if not match:
+            return None
+        request_id = match[1]
+        message = "HTTP 403. Scanner header blocked." if path == "/checks/scanner" else "HTTP 403. Disallowed content type blocked."
+        decision = "WAF blocked"
+
+    # Read the same sanitized activity feed the UI uses, allowing for a log flush.
+    for _ in range(5):
+        row = next((row for row in activity() if row["request_id"] == request_id), None)
+        if row and row["decision"] == decision and CHECK_RULES.get(path, set()) <= set(row["rules"]):
+            return {"request_id": request_id, "message": message}
+        sleep(0.2)
+    return None
+
+
 class Handler(SimpleHTTPRequestHandler):
     def translate_path(self, path):
         if urlsplit(path).path == "/alerts.json":
             return str(ROOT / "alerts.json")
         return super().translate_path(path)
 
-    def do_GET(self):
-        if urlsplit(self.path).path != "/activity.json":
-            return super().do_GET()
-        try:
-            payload = json.dumps({"rows": activity()}).encode("utf-8")
-        except OSError:
-            self.send_error(HTTPStatus.SERVICE_UNAVAILABLE, "Activity logs unavailable")
-            return
-        self.send_response(HTTPStatus.OK)
+    def send_json(self, status, document):
+        payload = json.dumps(document).encode("utf-8")
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+
+    def do_GET(self):
+        if urlsplit(self.path).path != "/activity.json":
+            return super().do_GET()
+        try:
+            rows = activity()
+        except OSError:
+            self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "Activity logs unavailable"})
+            return
+        self.send_json(HTTPStatus.OK, {"rows": rows})
+
+    def do_POST(self):
+        if self.path not in CHECK_COMMANDS:
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "Unknown check."})
+            return
+
+        host = self.headers.get("Host")
+        port = self.server.server_port
+        if host not in (f"127.0.0.1:{port}", f"localhost:{port}") or self.headers.get("Origin") != f"http://{host}":
+            self.send_json(HTTPStatus.FORBIDDEN, {"error": "Launch checks from the loopback dashboard."})
+            return
+        if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": "A check does not accept input."})
+            return
+
+        if not CHECK_LOCK.acquire(blocking=False):
+            self.send_json(HTTPStatus.CONFLICT, {"error": "A live check is already running."})
+            return
+        try:
+            result = run_live_check(self.path)
+        except subprocess.TimeoutExpired:
+            self.send_json(HTTPStatus.GATEWAY_TIMEOUT, {"error": "The check timed out. Verify the lab is healthy."})
+            return
+        except OSError:
+            result = None
+        finally:
+            CHECK_LOCK.release()
+        if result is None:
+            self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "The check did not verify the expected gateway decision. Check the lab services."})
+            return
+        self.send_json(HTTPStatus.OK, result)
 
     def list_directory(self, path):
         self.send_error(HTTPStatus.NOT_FOUND)
