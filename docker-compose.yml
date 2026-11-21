@@ -39,7 +39,7 @@ services:
       MODSEC_AUDIT_LOG_FORMAT: JSON
       MODSEC_AUDIT_LOG_PARTS: AHZ
       MODSEC_AUDIT_LOG_RELEVANT_STATUS: "^403$"
-      MODSEC_AUDIT_LOG: /var/log/modsecurity/audit/modsec.jsonl
+      MODSEC_AUDIT_LOG: /var/log/modsecurity/audit/audit.log
       BLOCKING_PARANOIA: "1"
       ANOMALY_INBOUND: "5"
     ports:
@@ -51,10 +51,19 @@ services:
       - ./waf/default.conf.template:/etc/nginx/templates/conf.d/default.conf.template:ro
       - ./waf/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
       - ./waf/nginx-ratelimit.conf:/etc/nginx/conf.d/00-shield-rate.conf:ro
-      - edge-logs:/var/log/modsecurity/audit
+      - type: bind
+        source: ./logs/nginx/access.log
+        target: /var/log/modsecurity/audit/access.log
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./logs/modsec/audit.log
+        target: /var/log/modsecurity/audit/audit.log
+        bind:
+          create_host_path: false
     networks: [edge, backend]
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "--cacert", "/etc/nginx/conf/server.crt", "https://localhost:8443/healthz"]
+      test: ["CMD", "curl", "-fsS", "-A", "shield-wall-healthcheck", "--cacert", "/etc/nginx/conf/server.crt", "https://localhost:8443/healthz"]
       interval: 3s
       timeout: 3s
       retries: 10
@@ -63,6 +72,3 @@ networks:
   edge: {}
   backend:
     internal: true
-
-volumes:
-  edge-logs:
