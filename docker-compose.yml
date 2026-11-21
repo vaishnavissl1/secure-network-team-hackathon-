@@ -5,11 +5,28 @@ services:
     image: bkimminich/juice-shop@sha256:adaf6a6ca50f772dff7d2fe56972c659e81a61e0dbbe607c2b39fefd436e6153
     pull_policy: never
     networks: [backend]
+    healthcheck:
+      test:
+        - CMD
+        - /nodejs/bin/node
+        - -e
+        - >-
+          require('node:http').get('http://127.0.0.1:3000/', response => {
+            response.resume();
+            process.exit(response.statusCode === 200 ? 0 : 1);
+          }).on('error', () => process.exit(1))
+      start_period: 45s
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
   waf:
     image: owasp/modsecurity-crs@sha256:697812147e7eada5c668e9728c6439d4663476c69f68635d24fb7878aac0f26a
     pull_policy: never
-    depends_on: [juice-shop]
+    depends_on:
+      juice-shop:
+        condition: service_healthy
+        restart: true
     environment:
       BACKEND: http://juice-shop:3000
       SERVER_NAME: shield.local
@@ -36,6 +53,11 @@ services:
       - ./waf/nginx-ratelimit.conf:/etc/nginx/conf.d/00-shield-rate.conf:ro
       - edge-logs:/var/log/modsecurity/audit
     networks: [edge, backend]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--cacert", "/etc/nginx/conf/server.crt", "https://localhost:8443/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
 
 networks:
   edge: {}
