@@ -6,7 +6,7 @@
 - App behind the WAF: **OWASP Juice Shop** (private backend, no host port).
 - WAF: nginx + ModSecurity 3 + OWASP CRS v4, Paranoia Level 1, anomaly threshold 5, TLS 1.2+.
 - Image digests (demo machine): `owasp/modsecurity-crs@sha256:697812147e7eada5c668e9728c6439d4663476c69f68635d24fb7878aac0f26a` (CRS 4.30.0, nginx 1.30.7), `bkimminich/juice-shop@sha256:adaf6a6ca50f772dff7d2fe56972c659e81a61e0dbbe607c2b39fefd436e6153`
-- Demo machine: Windows 11 laptop (Docker Desktop/WSL2) for this run, run id `20261121-105637`. **Not yet re-run on Person A's Ubuntu VM.**
+- Demo machine: Windows 11 laptop (Docker Desktop/WSL2) for this run, re-verified against A's latest `edge-stack` commit (`e45ac8c`): 53 requests, ALL PASS. **Not yet re-run on Person A's Ubuntu VM.**
 
 ## 2. Acceptance results (from `bash tests/acceptance.sh`)
 | Check | Result |
@@ -70,7 +70,7 @@ Mitigations: M1050 Exploit Protection, M1037 Filter Network Traffic, M1031 Netwo
 
 ## 8. Open items
 - **Path-form traversal** (`/ftp/..%2f..%2f..%2fetc%2fpasswd`, case `atk-trav-02`): nginx itself answers **400** before ModSecurity runs and never forwards it to the app. That is not a WAF 403, so it is reported separately and is not counted in the 5/5. The query-form traversal (`atk-trav-01`) is the scored 403 case.
-- The nginx access log has no `user_agent` field, so the scanner case is confirmed from the audit log rule 913100, not from nginx.
+- The scanner case is confirmed from the audit log rule 913100 (CRS scanner user-agent detection) and from `user_agent` in the nginx access log, which A added in the latest `edge-stack` commit.
 - Run only on the Windows laptop so far; the scored run on the agreed demo machine (Person A's VM) is still to do.
 - Dashboard screenshot not yet saved to `report/evidence/`.
 - Team-size eligibility confirmation still open.

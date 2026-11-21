@@ -13,6 +13,7 @@ ALERTS="dashboard/alerts.json"
 
 echo "== 0. confirm blocking mode is ACTIVE (env changes need recreate, not restart) =="
 if command -v docker >/dev/null 2>&1 && [ -f docker-compose.yml ]; then
+  [ -f "$ACCESS" ] && [ -f "$AUDIT" ] || bash scripts/up.sh >/dev/null 2>&1   # A's script creates the bind-mounted log files
   docker compose up -d --force-recreate waf >/dev/null 2>&1 || echo "  (could not recreate waf — is the stack built?)"
   MSYS_NO_PATHCONV=1 docker compose exec -T waf sh -c 'grep -rhi "SecRuleEngine" /etc/modsecurity.d 2>/dev/null | head -1' \
     || echo "  (could not read SecRuleEngine — check manually)"
@@ -26,12 +27,10 @@ if ! python tests/runner.py --suite all --base "$BASE" --out "$RESULTS" || [ ! -
   echo "  [FAIL] runner failed or wrote no rows - refusing to score stale data"; exit 2
 fi
 
-echo "== 1b. export edge logs from the compose volume (A: access.jsonl + modsec.jsonl) =="
-mkdir -p logs/nginx logs/modsec
-if command -v docker >/dev/null 2>&1 && [ -f docker-compose.yml ]; then
-  MSYS_NO_PATHCONV=1 docker compose exec -T waf cat /var/log/modsecurity/audit/access.jsonl > logs/nginx/access.log 2>/dev/null     || echo "  (could not export access log; using existing $ACCESS if present)"
-  MSYS_NO_PATHCONV=1 docker compose exec -T waf cat /var/log/modsecurity/audit/modsec.jsonl > logs/modsec/audit.log 2>/dev/null     || echo "  (could not export audit log; using existing $AUDIT if present)"
-fi
+echo "== 1b. edge logs: A's compose bind-mounts them on the host (logs/nginx/access.log, logs/modsec/audit.log) =="
+for f in "$ACCESS" "$AUDIT"; do
+  if [ -s "$f" ]; then echo "  $f: $(wc -l < "$f") lines"; else echo "  WARNING: $f missing or empty - blocked-request rule IDs cannot be joined"; fi
+done
 
 echo "== 2. build the summary from schedule + logs =="
 python dashboard/summarize.py --results "$RESULTS" --access "$ACCESS" --audit "$AUDIT" --out "$ALERTS" || true
